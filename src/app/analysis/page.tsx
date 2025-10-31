@@ -22,7 +22,7 @@ type Entry = {
 export default function AnalysisPage() {
   const router = useRouter();
   const [teamNumber, setTeamNumber] = useState<string>('');
-  const [days, setDays] = useState<number>(0); // 0 = all time
+  // Removed timeframe slider; scope handles event vs season
   const [rows, setRows] = useState<Entry[]>([]);
   const [status, setStatus] = useState<string>('');
   const [scope, setScope] = useState<'event' | 'season'>('event');
@@ -47,14 +47,10 @@ export default function AnalysisPage() {
       } catch {}
       q = q.eq('season', seasonYear);
     }
-    if (days > 0) {
-      const since = new Date();
-      since.setDate(since.getDate() - days);
-      const iso = since.toISOString();
-      // prefer scouted_at if present; fallback to created_at
-      q = q.or(`scouted_at.gte.${iso},created_at.gte.${iso}`);
-    }
-    const { data, error } = await q.order('match_key', { ascending: true });
+    // Sort newest first by scouted_at then created_at
+    const { data, error } = await q
+      .order('scouted_at', { ascending: false })
+      .order('created_at', { ascending: false });
     if (error) setStatus(`Error: ${error.message}`);
     else {
       const entries = (data as any[]) as Entry[];
@@ -102,9 +98,20 @@ export default function AnalysisPage() {
       .map((r) => ({ r, val: Number(r.metrics?.[metric]) }))
       .filter(({ val }) => !Number.isNaN(val));
     const teamVals = numeric.filter(({ r }) => isTeamRow(r)).map(({ val }) => val);
-    const fieldVals = numeric.filter(({ r }) => !isTeamRow(r)).map(({ val }) => val);
+    const othersVals = numeric.filter(({ r }) => !isTeamRow(r)).map(({ val }) => val);
     const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
-    return { teamAvg: +avg(teamVals).toFixed(2), fieldAvg: +avg(fieldVals).toFixed(2) };
+    return { teamAvg: +avg(teamVals).toFixed(2), othersAvg: +avg(othersVals).toFixed(2) };
+  }
+
+  function formatTime(iso?: string | null) {
+    if (!iso) return '';
+    try {
+      const dt = new Date(iso);
+      return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+        hour12: false, timeZone: 'America/Los_Angeles'
+      }).format(dt);
+    } catch { return iso; }
   }
 
   return (
@@ -136,33 +143,49 @@ export default function AnalysisPage() {
       </div>
 
       {numericMetrics.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-          {numericMetrics.map((metric) => {
-            const data = rows
-              .map((r) => ({ name: r.match_key, Team: r.team_number === Number(teamNumber) ? Number(r.metrics?.[metric]) || 0 : 0, Field: Number(r.metrics?.[metric]) || 0 }))
-              .filter((d) => !Number.isNaN(d.Field));
-            const { teamAvg, fieldAvg } = computeTeamVsField(metric);
-            return (
-              <div key={metric} style={{ height: 280, background: '#fafafa', border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <strong>{metric}</strong>
-                  <span style={{ fontSize: 12, color: '#666' }}>Avg T:{teamAvg} / F:{fieldAvg}</span>
+        <>
+          {/* Summary metric cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginBottom: 8 }}>
+            {numericMetrics.map((metric) => {
+              const { teamAvg, othersAvg } = computeTeamVsField(metric);
+              const deltaPct = othersAvg === 0 ? (teamAvg > 0 ? 100 : 0) : ((teamAvg - othersAvg) / othersAvg) * 100;
+              return (
+                <div key={metric} style={{ border: '1px solid #eee', borderRadius: 8, padding: 12, background: '#fafafa' }}>
+                  <div style={{ fontSize: 12, color: '#666' }}>{metric}</div>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', marginTop: 4 }}>
+                    <div style={{ fontSize: 24, fontWeight: 700 }}>{teamAvg}</div>
+                    <div style={{ fontSize: 12, color: '#666' }}>vs Others {othersAvg} ({deltaPct.toFixed(0)}%)</div>
+                  </div>
                 </div>
-                <ResponsiveContainer width="100%" height="85%">
-                  <BarChart data={data} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" hide />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="Field" fill="#c1c1ff" />
-                    <Bar dataKey="Team" fill="#8884d8" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+
+          {/* Compact charts (optional detail) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+            {numericMetrics.map((metric) => {
+              const data = rows
+                .map((r) => ({ name: r.match_key, Team: r.team_number === Number(teamNumber) ? Number(r.metrics?.[metric]) || 0 : 0, Others: Number(r.metrics?.[metric]) || 0 }))
+                .filter((d) => !Number.isNaN(d.Others));
+              return (
+                <div key={metric} style={{ height: 220, background: '#fafafa', border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
+                  <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{metric}</div>
+                  <ResponsiveContainer width="100%" height="85%">
+                    <BarChart data={data} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" hide />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="Others" fill="#c1c1ff" />
+                      <Bar dataKey="Team" fill="#8884d8" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       <h2>Raw Entries</h2>
@@ -185,7 +208,7 @@ export default function AnalysisPage() {
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.team_number}</td>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{eventNames[r.event_code] ?? r.event_code}</td>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.scout_name ?? ''}</td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.scouted_at ?? r.created_at ?? ''}</td>
+                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{formatTime(r.scouted_at ?? r.created_at)}</td>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{JSON.stringify(r.metrics)}</td>
               </tr>
             ))}
