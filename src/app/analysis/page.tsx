@@ -133,11 +133,6 @@ export default function AnalysisPage() {
             Current season
           </label>
         </div>
-        <label>
-          Timeframe (days)
-          <input type="range" min={0} max={14} value={days} onChange={(e) => setDays(parseInt(e.target.value, 10))} style={{ marginLeft: 8 }} />
-          <span style={{ marginLeft: 8 }}>{days === 0 ? 'All time' : `Past ${days}d`}</span>
-        </label>
         <button onClick={load} style={{ padding: 8, borderRadius: 6, background: '#111', color: '#fff' }}>Load</button>
         <span style={{ color: '#555' }}>{status}</span>
       </div>
