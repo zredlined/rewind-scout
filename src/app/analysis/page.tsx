@@ -26,6 +26,7 @@ export default function AnalysisPage() {
   const [rows, setRows] = useState<Entry[]>([]);
   const [status, setStatus] = useState<string>('');
   const [scope, setScope] = useState<'event' | 'season'>('event');
+  const [eventNames, setEventNames] = useState<Record<string, string>>({});
 
   async function load() {
     setStatus('Loading...');
@@ -56,7 +57,20 @@ export default function AnalysisPage() {
     const { data, error } = await q.order('match_key', { ascending: true });
     if (error) setStatus(`Error: ${error.message}`);
     else {
-      setRows((data as any[]) as Entry[]);
+      const entries = (data as any[]) as Entry[];
+      setRows(entries);
+      // Load human-readable event names for the codes present in results
+      try {
+        const codes = Array.from(new Set(entries.map((r) => r.event_code).filter(Boolean)));
+        if (codes.length > 0) {
+          const { data: evs } = await supabase.from('events').select('code,name').in('code', codes);
+          const map: Record<string, string> = {};
+          for (const e of (evs as any[]) || []) map[e.code] = e.name;
+          setEventNames(map);
+        } else {
+          setEventNames({});
+        }
+      } catch {}
       setStatus('');
     }
   }
@@ -159,24 +173,27 @@ export default function AnalysisPage() {
               <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Match</th>
               <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Team</th>
               <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Event</th>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Season</th>
               <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Scout</th>
               <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Time</th>
               <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Metrics</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {(teamNumber ? rows.filter((r) => r.team_number === Number(teamNumber)) : []).map((r) => (
               <tr key={r.id}>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.match_key}</td>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.team_number}</td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.event_code}</td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.season}</td>
+                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{eventNames[r.event_code] ?? r.event_code}</td>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.scout_name ?? ''}</td>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.scouted_at ?? r.created_at ?? ''}</td>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{JSON.stringify(r.metrics)}</td>
               </tr>
             ))}
+            {!teamNumber && (
+              <tr>
+                <td colSpan={6} style={{ padding: 8, color: '#666' }}>Enter a team number above to view their entries.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
