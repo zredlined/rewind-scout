@@ -25,17 +25,26 @@ export default function AnalysisPage() {
   const [days, setDays] = useState<number>(0); // 0 = all time
   const [rows, setRows] = useState<Entry[]>([]);
   const [status, setStatus] = useState<string>('');
-  const [useCurrentEvent, setUseCurrentEvent] = useState<boolean>(true);
+  const [scope, setScope] = useState<'event' | 'season'>('event');
 
   async function load() {
     setStatus('Loading...');
     let q = supabase.from('scouting_entries').select('id,event_code,match_key,team_number,season,metrics,scout_name,created_at,scouted_at');
     if (teamNumber) q = q.eq('team_number', parseInt(teamNumber, 10));
-    if (useCurrentEvent) {
+    if (scope === 'event') {
       try {
         const ce = localStorage.getItem('currentEventCode');
         if (ce) q = q.eq('event_code', ce);
       } catch {}
+    } else {
+      // scope = season
+      // If current event exists, derive its season; else use current year
+      let seasonYear = new Date().getFullYear();
+      try {
+        const ce = localStorage.getItem('currentEventCode');
+        if (ce && /^\d{4}/.test(ce)) seasonYear = parseInt(ce.slice(0,4), 10);
+      } catch {}
+      q = q.eq('season', seasonYear);
     }
     if (days > 0) {
       const since = new Date();
@@ -74,13 +83,13 @@ export default function AnalysisPage() {
   }, [rows]);
 
   function computeTeamVsField(metric: string) {
-    const vals = rows.map((r) => ({
-      isTeam: teamNumber ? r.team_number === Number(teamNumber) : false,
-      val: Number(r.metrics?.[metric]) || 0,
-    })).filter((x) => !Number.isNaN(x.val));
-    const teamVals = vals.filter(v => v.isTeam).map(v => v.val);
-    const fieldVals = vals.map(v => v.val);
-    const avg = (arr: number[]) => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+    const isTeamRow = (r: Entry) => teamNumber && r.team_number === Number(teamNumber);
+    const numeric = rows
+      .map((r) => ({ r, val: Number(r.metrics?.[metric]) }))
+      .filter(({ val }) => !Number.isNaN(val));
+    const teamVals = numeric.filter(({ r }) => isTeamRow(r)).map(({ val }) => val);
+    const fieldVals = numeric.filter(({ r }) => !isTeamRow(r)).map(({ val }) => val);
+    const avg = (arr: number[]) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0);
     return { teamAvg: +avg(teamVals).toFixed(2), fieldAvg: +avg(fieldVals).toFixed(2) };
   }
 
@@ -93,14 +102,20 @@ export default function AnalysisPage() {
           Team Number
           <input value={teamNumber} onChange={(e) => setTeamNumber(e.target.value)} placeholder="2767" style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
         </label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input type="radio" name="scope" checked={scope==='event'} onChange={() => setScope('event')} />
+            Current event
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input type="radio" name="scope" checked={scope==='season'} onChange={() => setScope('season')} />
+            Current season
+          </label>
+        </div>
         <label>
           Timeframe (days)
           <input type="range" min={0} max={14} value={days} onChange={(e) => setDays(parseInt(e.target.value, 10))} style={{ marginLeft: 8 }} />
           <span style={{ marginLeft: 8 }}>{days === 0 ? 'All time' : `Past ${days}d`}</span>
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <input type="checkbox" checked={useCurrentEvent} onChange={(e) => setUseCurrentEvent(e.target.checked)} />
-          Current event only
         </label>
         <button onClick={load} style={{ padding: 8, borderRadius: 6, background: '#111', color: '#fff' }}>Load</button>
         <span style={{ color: '#555' }}>{status}</span>

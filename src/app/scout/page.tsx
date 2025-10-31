@@ -26,6 +26,7 @@ export default function ScoutPage() {
   const [eventSearch, setEventSearch] = useState<string>('');
   const [profileName, setProfileName] = useState<string | null>(null);
   const [matchIndex, setMatchIndex] = useState<number>(-1);
+  const [hasCurrentEvent, setHasCurrentEvent] = useState<boolean>(false);
 
   useEffect(() => {
     // require auth
@@ -83,7 +84,7 @@ export default function ScoutPage() {
     // default event from local storage
     try {
       const ce = localStorage.getItem('currentEventCode');
-      if (ce) setEventCode(ce);
+      if (ce) { setEventCode(ce); setHasCurrentEvent(true); }
     } catch {}
   }, [season, manual]);
 
@@ -170,15 +171,19 @@ export default function ScoutPage() {
       <h1>Scouting Form</h1>
 
       <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-        <label>
-          Season
-          <input type="number" value={season} onChange={(e) => setSeason(parseInt(e.target.value || String(defaultSeason), 10))} style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <input type="checkbox" checked={manual} onChange={(e) => setManual(e.target.checked)} />
-          Manual entry
-        </label>
-        {manual ? (
+        {!hasCurrentEvent && (
+          <>
+            <label>
+              Season
+              <input type="number" value={season} onChange={(e) => setSeason(parseInt(e.target.value || String(defaultSeason), 10))} style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input type="checkbox" checked={manual} onChange={(e) => setManual(e.target.checked)} />
+              Manual entry
+            </label>
+          </>
+        )}
+        {(!hasCurrentEvent && manual) ? (
           <>
             <label>
               Event Code
@@ -191,21 +196,28 @@ export default function ScoutPage() {
           </>
         ) : (
           <>
-            <label>
-              Search events
-              <input value={eventSearch} onChange={(e) => setEventSearch(e.target.value)} placeholder="type to filter..." style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
-            </label>
-            <label>
-              Event
-              <select value={eventCode} onChange={(e) => setEventCode(e.target.value)} style={{ marginLeft: 8, padding: 6 }}>
-                <option value="">Select event</option>
-                {events
-                  .filter((e) => (e.code + ' ' + e.name).toLowerCase().includes(eventSearch.toLowerCase()))
-                  .map((e) => (
-                    <option key={e.code} value={e.code}>{e.code} — {e.name}</option>
-                  ))}
-              </select>
-            </label>
+            {!hasCurrentEvent && (
+              <>
+                <label>
+                  Search events
+                  <input value={eventSearch} onChange={(e) => setEventSearch(e.target.value)} placeholder="type to filter..." style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
+                </label>
+                <label>
+                  Event
+                  <select value={eventCode} onChange={(e) => setEventCode(e.target.value)} style={{ marginLeft: 8, padding: 6 }}>
+                    <option value="">Select event</option>
+                    {events
+                      .filter((e) => (e.code + ' ' + e.name).toLowerCase().includes(eventSearch.toLowerCase()))
+                      .map((e) => (
+                        <option key={e.code} value={e.code}>{e.code} — {e.name}</option>
+                      ))}
+                  </select>
+                </label>
+              </>
+            )}
+            {hasCurrentEvent && (
+              <div>Event: <strong>{eventCode}</strong></div>
+            )}
             <label>
               Match
               <select value={matchKey} onChange={(e) => setMatchKey(e.target.value)} style={{ marginLeft: 8, padding: 6 }}>
