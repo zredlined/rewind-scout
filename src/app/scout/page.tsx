@@ -23,11 +23,23 @@ export default function ScoutPage() {
   const [manual, setManual] = useState<boolean>(false);
   const [events, setEvents] = useState<{ code: string; name: string }[]>([]);
   const [matches, setMatches] = useState<{ match_key: string }[]>([]);
+  const [eventSearch, setEventSearch] = useState<string>('');
+  const [profileName, setProfileName] = useState<string | null>(null);
 
   useEffect(() => {
     // require auth
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) router.replace('/login');
+      else {
+        supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', data.user.id)
+          .maybeSingle()
+          .then(({ data: p }) => {
+            setProfileName((p as any)?.full_name ?? null);
+          });
+      }
     });
     async function load() {
       setStatus('Loading form...');
@@ -104,6 +116,8 @@ export default function ScoutPage() {
       match_key: matchKey,
       team_number: parseInt(teamNumber, 10),
       scout_id: scoutId,
+      scout_name: profileName ?? (userData.user?.email ?? null),
+      scouted_at: new Date().toISOString(),
       metrics: values,
     };
     const { error } = await supabase.from('scouting_entries').insert(payload);
@@ -152,12 +166,18 @@ export default function ScoutPage() {
         ) : (
           <>
             <label>
+              Search events
+              <input value={eventSearch} onChange={(e) => setEventSearch(e.target.value)} placeholder="type to filter..." style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
+            </label>
+            <label>
               Event
               <select value={eventCode} onChange={(e) => setEventCode(e.target.value)} style={{ marginLeft: 8, padding: 6 }}>
                 <option value="">Select event</option>
-                {events.map((e) => (
-                  <option key={e.code} value={e.code}>{e.code} — {e.name}</option>
-                ))}
+                {events
+                  .filter((e) => (e.code + ' ' + e.name).toLowerCase().includes(eventSearch.toLowerCase()))
+                  .map((e) => (
+                    <option key={e.code} value={e.code}>{e.code} — {e.name}</option>
+                  ))}
               </select>
             </label>
             <label>
@@ -168,6 +188,10 @@ export default function ScoutPage() {
                   <option key={m.match_key} value={m.match_key}>{m.match_key}</option>
                 ))}
               </select>
+            </label>
+            <label>
+              Or type match
+              <input value={matchKey} onChange={(e) => setMatchKey(e.target.value)} placeholder="qm12" style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
             </label>
           </>
         )}
