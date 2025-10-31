@@ -17,6 +17,9 @@ export default function ScoutPage() {
   const [fields, setFields] = useState<FormField[]>([]);
   const [values, setValues] = useState<Record<string, any>>({});
   const [status, setStatus] = useState<string>('');
+  const [manual, setManual] = useState<boolean>(false);
+  const [events, setEvents] = useState<{ code: string; name: string }[]>([]);
+  const [matches, setMatches] = useState<{ match_key: string }[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -44,6 +47,37 @@ export default function ScoutPage() {
     }
     load();
   }, [season]);
+
+  // Load TBA-imported events and matches when not manual
+  useEffect(() => {
+    if (manual) return;
+    async function loadEvents() {
+      const { data, error } = await supabase
+        .from('events')
+        .select('code,name');
+      if (error) return;
+      const prefix = String(season);
+      setEvents(((data as any[]) || []).filter((e) => (e.code || '').startsWith(prefix)));
+    }
+    loadEvents();
+  }, [season, manual]);
+
+  useEffect(() => {
+    if (manual || !eventCode) return;
+    async function loadMatches() {
+      // need event_id for matches; fetch by code first
+      const { data: ev } = await supabase.from('events').select('id').eq('code', eventCode).maybeSingle();
+      if (!ev?.id) { setMatches([]); return; }
+      const { data, error } = await supabase
+        .from('matches')
+        .select('match_key')
+        .eq('event_id', ev.id)
+        .order('match_key');
+      if (error) return;
+      setMatches((data as any[]) || []);
+    }
+    loadMatches();
+  }, [eventCode, manual]);
 
   function setValue(label: string, v: any) {
     setValues((prev) => ({ ...prev, [label]: v }));
@@ -92,14 +126,43 @@ export default function ScoutPage() {
           Season
           <input type="number" value={season} onChange={(e) => setSeason(parseInt(e.target.value || String(defaultSeason), 10))} style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
         </label>
-        <label>
-          Event Code
-          <input value={eventCode} onChange={(e) => setEventCode(e.target.value)} placeholder="2026miket" style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="checkbox" checked={manual} onChange={(e) => setManual(e.target.checked)} />
+          Manual entry
         </label>
-        <label>
-          Match Key
-          <input value={matchKey} onChange={(e) => setMatchKey(e.target.value)} placeholder="qm12" style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
-        </label>
+        {manual ? (
+          <>
+            <label>
+              Event Code
+              <input value={eventCode} onChange={(e) => setEventCode(e.target.value)} placeholder="2026miket" style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
+            </label>
+            <label>
+              Match Key
+              <input value={matchKey} onChange={(e) => setMatchKey(e.target.value)} placeholder="qm12" style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
+            </label>
+          </>
+        ) : (
+          <>
+            <label>
+              Event
+              <select value={eventCode} onChange={(e) => setEventCode(e.target.value)} style={{ marginLeft: 8, padding: 6 }}>
+                <option value="">Select event</option>
+                {events.map((e) => (
+                  <option key={e.code} value={e.code}>{e.code} — {e.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Match
+              <select value={matchKey} onChange={(e) => setMatchKey(e.target.value)} style={{ marginLeft: 8, padding: 6 }}>
+                <option value="">Select match</option>
+                {matches.map((m) => (
+                  <option key={m.match_key} value={m.match_key}>{m.match_key}</option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
         <label>
           Team Number
           <input value={teamNumber} onChange={(e) => setTeamNumber(e.target.value)} placeholder="2767" style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />

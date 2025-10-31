@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis, ResponsiveContainer } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis, ResponsiveContainer, Legend } from 'recharts';
 
 type Entry = {
   id: string;
@@ -17,7 +17,6 @@ type Entry = {
 
 export default function AnalysisPage() {
   const [teamNumber, setTeamNumber] = useState<string>('');
-  const [metricKey, setMetricKey] = useState<string>('');
   const [rows, setRows] = useState<Entry[]>([]);
   const [status, setStatus] = useState<string>('');
 
@@ -38,28 +37,28 @@ export default function AnalysisPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const metricOptions = useMemo(() => {
-    const set = new Set<string>();
+  const numericMetrics = useMemo(() => {
+    const candidates = new Set<string>();
     for (const r of rows) {
-      if (r?.metrics && typeof r.metrics === 'object') {
-        for (const k of Object.keys(r.metrics)) set.add(k);
+      const m = r.metrics || {};
+      for (const [k, v] of Object.entries(m)) {
+        const n = Number(v);
+        if (!Number.isNaN(n)) candidates.add(k);
       }
     }
-    return Array.from(set).sort();
+    return Array.from(candidates).sort();
   }, [rows]);
 
-  const chartData = useMemo(() => {
-    if (!metricKey) return [] as { name: string; value: number }[];
-    return rows
-      .map((r) => ({ name: r.match_key, value: Number(r.metrics?.[metricKey]) || 0 }))
-      .filter((d) => !Number.isNaN(d.value));
-  }, [rows, metricKey]);
-
-  const avg = useMemo(() => {
-    if (!chartData.length) return 0;
-    const s = chartData.reduce((acc, d) => acc + d.value, 0);
-    return +(s / chartData.length).toFixed(2);
-  }, [chartData]);
+  function computeTeamVsField(metric: string) {
+    const vals = rows.map((r) => ({
+      isTeam: teamNumber ? r.team_number === Number(teamNumber) : false,
+      val: Number(r.metrics?.[metric]) || 0,
+    })).filter((x) => !Number.isNaN(x.val));
+    const teamVals = vals.filter(v => v.isTeam).map(v => v.val);
+    const fieldVals = vals.map(v => v.val);
+    const avg = (arr: number[]) => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+    return { teamAvg: +avg(teamVals).toFixed(2), fieldAvg: +avg(fieldVals).toFixed(2) };
+  }
 
   return (
     <div style={{ padding: 16, maxWidth: 960, margin: '0 auto', display: 'grid', gap: 12 }}>
@@ -74,30 +73,35 @@ export default function AnalysisPage() {
         <span style={{ color: '#555' }}>{status}</span>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <label>
-          Metric
-          <select value={metricKey} onChange={(e) => setMetricKey(e.target.value)} style={{ marginLeft: 8, padding: 6 }}>
-            <option value="">Select a metric</option>
-            {metricOptions.map((k) => (
-              <option key={k} value={k}>{k}</option>
-            ))}
-          </select>
-        </label>
-        {metricKey && <span>Average: {avg}</span>}
-      </div>
-
-      <div style={{ height: 320, width: '100%', background: '#fafafa', border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 16, right: 16, bottom: 16, left: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="value" fill="#8884d8" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      {numericMetrics.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+          {numericMetrics.map((metric) => {
+            const data = rows
+              .map((r) => ({ name: r.match_key, Team: r.team_number === Number(teamNumber) ? Number(r.metrics?.[metric]) || 0 : 0, Field: Number(r.metrics?.[metric]) || 0 }))
+              .filter((d) => !Number.isNaN(d.Field));
+            const { teamAvg, fieldAvg } = computeTeamVsField(metric);
+            return (
+              <div key={metric} style={{ height: 280, background: '#fafafa', border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <strong>{metric}</strong>
+                  <span style={{ fontSize: 12, color: '#666' }}>Avg T:{teamAvg} / F:{fieldAvg}</span>
+                </div>
+                <ResponsiveContainer width="100%" height="85%">
+                  <BarChart data={data} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" hide />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="Field" fill="#c1c1ff" />
+                    <Bar dataKey="Team" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <h2>Raw Entries</h2>
       <div style={{ overflowX: 'auto' }}>
