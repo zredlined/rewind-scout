@@ -35,6 +35,7 @@ export default function LoginPage() {
       <Auth
         supabaseClient={supabase}
         appearance={{ theme: ThemeSupa }}
+        redirectTo={typeof window !== 'undefined' ? window.location.origin : ''}
         providers={['google']}
         magicLink
       />
