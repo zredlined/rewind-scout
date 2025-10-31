@@ -14,6 +14,9 @@ type Entry = {
   team_number: number;
   season: number;
   metrics: Record<string, any>;
+  scout_name?: string | null;
+  created_at?: string;
+  scouted_at?: string | null;
 };
 
 export default function AnalysisPage() {
@@ -26,7 +29,7 @@ export default function AnalysisPage() {
 
   async function load() {
     setStatus('Loading...');
-    let q = supabase.from('scouting_entries').select('id,event_code,match_key,team_number,season,metrics');
+    let q = supabase.from('scouting_entries').select('id,event_code,match_key,team_number,season,metrics,scout_name,created_at,scouted_at');
     if (teamNumber) q = q.eq('team_number', parseInt(teamNumber, 10));
     if (useCurrentEvent) {
       try {
@@ -37,7 +40,9 @@ export default function AnalysisPage() {
     if (days > 0) {
       const since = new Date();
       since.setDate(since.getDate() - days);
-      q = q.gte('created_at', since.toISOString());
+      const iso = since.toISOString();
+      // prefer scouted_at if present; fallback to created_at
+      q = q.or(`scouted_at.gte.${iso},created_at.gte.${iso}`);
     }
     const { data, error } = await q.order('match_key', { ascending: true });
     if (error) setStatus(`Error: ${error.message}`);
@@ -140,6 +145,8 @@ export default function AnalysisPage() {
               <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Team</th>
               <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Event</th>
               <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Season</th>
+              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Scout</th>
+              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Time</th>
               <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Metrics</th>
             </tr>
           </thead>
@@ -150,6 +157,8 @@ export default function AnalysisPage() {
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.team_number}</td>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.event_code}</td>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.season}</td>
+                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.scout_name ?? ''}</td>
+                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.scouted_at ?? r.created_at ?? ''}</td>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{JSON.stringify(r.metrics)}</td>
               </tr>
             ))}

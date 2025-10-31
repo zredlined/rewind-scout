@@ -20,10 +20,10 @@ export async function POST(
     return new Response(JSON.stringify({ error: "SUPABASE_SERVICE_ROLE_KEY not set" }), { status: 500 });
   }
 
-  // Ensure event exists
+  // Ensure event exists (upsert by unique code)
   const { data: ev, error: evErr } = await supabaseAdmin
     .from("events")
-    .upsert({ code, name: code })
+    .upsert({ code, name: code }, { onConflict: "code" })
     .select()
     .eq("code", code)
     .single();
