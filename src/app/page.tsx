@@ -11,7 +11,7 @@ export default function Home() {
           <Link className="px-4 py-3 rounded-md bg-black text-white" href="/analysis">Analysis</Link>
           <Link className="px-4 py-3 rounded-md bg-black text-white" href="/form-builder">Form Builder</Link>
           <Link className="px-4 py-3 rounded-md border" href="/dashboard">TBA Imports</Link>
-          <Link className="px-4 py-3 rounded-md border" href="/login">Login</Link>
+          
         </div>
       </main>
     </div>

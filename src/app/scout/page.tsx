@@ -25,6 +25,10 @@ export default function ScoutPage() {
   const [matches, setMatches] = useState<{ match_key: string }[]>([]);
 
   useEffect(() => {
+    // require auth
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) router.replace('/login');
+    });
     async function load() {
       setStatus('Loading form...');
       const { data, error } = await supabase

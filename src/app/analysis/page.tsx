@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis, ResponsiveContainer, Legend } from 'recharts';
 
@@ -16,6 +17,7 @@ type Entry = {
 };
 
 export default function AnalysisPage() {
+  const router = useRouter();
   const [teamNumber, setTeamNumber] = useState<string>('');
   const [rows, setRows] = useState<Entry[]>([]);
   const [status, setStatus] = useState<string>('');
@@ -33,6 +35,10 @@ export default function AnalysisPage() {
   }
 
   useEffect(() => {
+    // require auth
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) router.replace('/login');
+    });
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

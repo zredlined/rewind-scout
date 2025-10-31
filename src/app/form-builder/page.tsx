@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 type FieldType = 'counter' | 'checkbox' | 'text';
@@ -15,6 +16,7 @@ type FormField = {
 
 export default function FormBuilderPage() {
   const defaultSeason = new Date().getFullYear();
+  const router = useRouter();
   const [season, setSeason] = useState<number>(defaultSeason);
   const [fields, setFields] = useState<FormField[]>([]);
   const [status, setStatus] = useState<string>('');
@@ -22,6 +24,10 @@ export default function FormBuilderPage() {
   const [newType, setNewType] = useState<FieldType>('counter');
 
   useEffect(() => {
+    // require auth
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) router.replace('/login');
+    });
     async function load() {
       setStatus('Loading form...');
       const { data, error } = await supabase
