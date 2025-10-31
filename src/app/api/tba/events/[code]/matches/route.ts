@@ -9,9 +9,9 @@ function frcKeyToNum(key: string): number | null {
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { code: string } }
+  context: { params: Promise<{ code: string }> }
 ) {
-  const code = params.code; // e.g., 2025miket
+  const { code } = await context.params; // e.g., 2025miket
   const tbaKey = process.env.TBA_AUTH_KEY;
   if (!tbaKey) {
     return new Response(JSON.stringify({ error: "TBA_AUTH_KEY not set" }), { status: 500 });
