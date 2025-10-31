@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 type FieldType = 'counter' | 'checkbox' | 'text';
@@ -10,6 +11,7 @@ type FormField = { id: string; label: string; type: FieldType };
 
 export default function ScoutPage() {
   const defaultSeason = new Date().getFullYear();
+  const router = useRouter();
   const [season, setSeason] = useState<number>(defaultSeason);
   const [eventCode, setEventCode] = useState<string>('');
   const [matchKey, setMatchKey] = useState<string>('');
@@ -17,6 +19,7 @@ export default function ScoutPage() {
   const [fields, setFields] = useState<FormField[]>([]);
   const [values, setValues] = useState<Record<string, any>>({});
   const [status, setStatus] = useState<string>('');
+  const [justSubmitted, setJustSubmitted] = useState<boolean>(false);
   const [manual, setManual] = useState<boolean>(false);
   const [events, setEvents] = useState<{ code: string; name: string }[]>([]);
   const [matches, setMatches] = useState<{ match_key: string }[]>([]);
@@ -115,6 +118,7 @@ export default function ScoutPage() {
     }
     setValues(reset);
     setStatus('Submitted.');
+    setJustSubmitted(true);
   }
 
   return (
@@ -194,6 +198,32 @@ export default function ScoutPage() {
         <button onClick={submit} style={{ padding: 10, borderRadius: 6, background: '#111', color: '#fff' }}>Submit</button>
         <span style={{ color: '#555' }}>{status}</span>
       </div>
+
+      {justSubmitted && (
+        <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => {
+              setJustSubmitted(false);
+              // keep event code; user can enter next match/team
+            }}
+            style={{ padding: 8, borderRadius: 6, border: '1px solid #ccc' }}
+          >
+            Add another entry
+          </button>
+          <button
+            onClick={() => router.push('/analysis')}
+            style={{ padding: 8, borderRadius: 6, border: '1px solid #ccc' }}
+          >
+            View analysis
+          </button>
+          <button
+            onClick={() => router.push('/')}
+            style={{ padding: 8, borderRadius: 6, border: '1px solid #ccc' }}
+          >
+            Back to home
+          </button>
+        </div>
+      )}
     </div>
   );
 }
