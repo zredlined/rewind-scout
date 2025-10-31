@@ -61,7 +61,16 @@ export default function Dashboard() {
     <div style={{ padding: 24 }}>
       <h1>Welcome</h1>
       <p>Signed in as {email}</p>
-      <div style={{ marginTop: 24, display: 'grid', gap: 12, maxWidth: 520 }}>
+      <div style={{ marginTop: 24, display: 'grid', gap: 12, maxWidth: 720 }}>
+        <h2>Navigation</h2>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <Link href="/scout" style={{ padding: 10, borderRadius: 6, background: '#111', color: '#fff' }}>Go to Scouting Form</Link>
+          <Link href="/analysis" style={{ padding: 10, borderRadius: 6, background: '#111', color: '#fff' }}>View Analysis</Link>
+          <Link href="/dashboard/form-builder" style={{ padding: 10, borderRadius: 6, background: '#111', color: '#fff' }}>Build/Edit Scouting Form</Link>
+        </div>
+
+        <hr style={{ margin: '16px 0' }} />
+
         <h2>TBA Imports</h2>
         <label style={{ display: 'grid', gap: 6 }}>
           <span>Season</span>
