@@ -22,11 +22,18 @@ export default function AnalysisPage() {
   const [days, setDays] = useState<number>(0); // 0 = all time
   const [rows, setRows] = useState<Entry[]>([]);
   const [status, setStatus] = useState<string>('');
+  const [useCurrentEvent, setUseCurrentEvent] = useState<boolean>(true);
 
   async function load() {
     setStatus('Loading...');
     let q = supabase.from('scouting_entries').select('id,event_code,match_key,team_number,season,metrics');
     if (teamNumber) q = q.eq('team_number', parseInt(teamNumber, 10));
+    if (useCurrentEvent) {
+      try {
+        const ce = localStorage.getItem('currentEventCode');
+        if (ce) q = q.eq('event_code', ce);
+      } catch {}
+    }
     if (days > 0) {
       const since = new Date();
       since.setDate(since.getDate() - days);
@@ -85,6 +92,10 @@ export default function AnalysisPage() {
           Timeframe (days)
           <input type="range" min={0} max={14} value={days} onChange={(e) => setDays(parseInt(e.target.value, 10))} style={{ marginLeft: 8 }} />
           <span style={{ marginLeft: 8 }}>{days === 0 ? 'All time' : `Past ${days}d`}</span>
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={useCurrentEvent} onChange={(e) => setUseCurrentEvent(e.target.checked)} />
+          Current event only
         </label>
         <button onClick={load} style={{ padding: 8, borderRadius: 6, background: '#111', color: '#fff' }}>Load</button>
         <span style={{ color: '#555' }}>{status}</span>

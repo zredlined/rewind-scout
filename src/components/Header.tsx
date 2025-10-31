@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 export default function Header() {
@@ -27,19 +27,25 @@ export default function Header() {
     // no redirect here; header will update
   }
 
+  const initials = useMemo(() => {
+    if (!email) return '';
+    const name = email.split('@')[0];
+    return name.slice(0, 2).toUpperCase();
+  }, [email]);
+
   return (
     <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid #eee' }}>
       <nav style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         <Link href="/" style={{ fontWeight: 600 }}>FRC Scouting</Link>
+        <Link href="/check-in">Check-in</Link>
         <Link href="/scout">Scout</Link>
         <Link href="/analysis">Analysis</Link>
         <Link href="/form-builder">Form Builder</Link>
-        <Link href="/dashboard">TBA</Link>
       </nav>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
         {email ? (
           <>
-            <span style={{ fontSize: 14, color: '#555' }}>{email}</span>
+            <div style={{ width: 28, height: 28, borderRadius: 14, background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>{initials}</div>
             <button onClick={logout} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ccc' }}>Log out</button>
           </>
         ) : (

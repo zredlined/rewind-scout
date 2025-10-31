@@ -25,6 +25,7 @@ export default function ScoutPage() {
   const [matches, setMatches] = useState<{ match_key: string }[]>([]);
   const [eventSearch, setEventSearch] = useState<string>('');
   const [profileName, setProfileName] = useState<string | null>(null);
+  const [matchIndex, setMatchIndex] = useState<number>(-1);
 
   useEffect(() => {
     // require auth
@@ -79,6 +80,11 @@ export default function ScoutPage() {
       setEvents(((data as any[]) || []).filter((e) => (e.code || '').startsWith(prefix)));
     }
     loadEvents();
+    // default event from local storage
+    try {
+      const ce = localStorage.getItem('currentEventCode');
+      if (ce) setEventCode(ce);
+    } catch {}
   }, [season, manual]);
 
   useEffect(() => {
@@ -93,7 +99,13 @@ export default function ScoutPage() {
         .eq('event_id', ev.id)
         .order('match_key');
       if (error) return;
-      setMatches((data as any[]) || []);
+      const list = ((data as any[]) || []);
+      setMatches(list);
+      if (list.length > 0) {
+        const idx = list.findIndex((m) => m.match_key === matchKey);
+        setMatchIndex(idx >= 0 ? idx : 0);
+        if (!matchKey) setMatchKey(list[0].match_key);
+      }
     }
     loadMatches();
   }, [eventCode, manual]);
@@ -137,6 +149,20 @@ export default function ScoutPage() {
     setValues(reset);
     setStatus('Submitted.');
     setJustSubmitted(true);
+  }
+
+  function prevMatch() {
+    if (matches.length === 0) return;
+    const idx = Math.max(0, matchIndex - 1);
+    setMatchIndex(idx);
+    setMatchKey(matches[idx].match_key);
+  }
+
+  function nextMatch() {
+    if (matches.length === 0) return;
+    const idx = Math.min(matches.length - 1, matchIndex + 1);
+    setMatchIndex(idx);
+    setMatchKey(matches[idx].match_key);
   }
 
   return (
@@ -223,6 +249,13 @@ export default function ScoutPage() {
       </div>
 
       <div style={{ marginTop: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
+        {!manual && matches.length > 0 && (
+          <>
+            <button onClick={prevMatch} style={{ padding: 10, borderRadius: 6, border: '1px solid #ccc' }}>Prev match</button>
+            <span>Match {matchIndex + 1} / {matches.length}</span>
+            <button onClick={nextMatch} style={{ padding: 10, borderRadius: 6, border: '1px solid #ccc' }}>Next match</button>
+          </>
+        )}
         <button onClick={submit} style={{ padding: 10, borderRadius: 6, background: '#111', color: '#fff' }}>Submit</button>
         <span style={{ color: '#555' }}>{status}</span>
       </div>
