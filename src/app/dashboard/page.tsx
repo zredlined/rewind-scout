@@ -66,7 +66,7 @@ export default function Dashboard() {
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <Link href="/scout" style={{ padding: 10, borderRadius: 6, background: '#111', color: '#fff' }}>Go to Scouting Form</Link>
           <Link href="/analysis" style={{ padding: 10, borderRadius: 6, background: '#111', color: '#fff' }}>View Analysis</Link>
-          <Link href="/dashboard/form-builder" style={{ padding: 10, borderRadius: 6, background: '#111', color: '#fff' }}>Build/Edit Scouting Form</Link>
+          <Link href="/form-builder" style={{ padding: 10, borderRadius: 6, background: '#111', color: '#fff' }}>Build/Edit Scouting Form</Link>
         </div>
 
         <hr style={{ margin: '16px 0' }} />
