@@ -258,9 +258,9 @@ export default function ScoutPage() {
 
       <div style={{ marginTop: 16, display: 'grid', gap: 12 }}>
         {fields.map((f) => (
-          <div key={f.id} style={{ display: 'grid', gap: 8 }}>
-            <label>{f.label}</label>
-            {f.type === 'counter' && (
+          f.type === 'counter' ? (
+            <div key={f.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <label style={{ flex: 1 }}>{f.label}</label>
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                 <button
                   aria-label={`Decrement ${f.label}`}
@@ -296,32 +296,36 @@ export default function ScoutPage() {
                   +
                 </button>
               </div>
-            )}
-            {f.type === 'checkbox' && (
-              <input type="checkbox" checked={!!values[f.label]} onChange={(e) => setValue(f.label, e.target.checked)} />
-            )}
-            {f.type === 'text' && (
-              <textarea value={values[f.label] ?? ''} onChange={(e) => setValue(f.label, e.target.value)} rows={3} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }} />
-            )}
-            {f.type === 'multiselect' && (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {(f.options || []).map((opt) => {
-                  const selected: string = values[f.label] || '';
-                  const isOn = selected === opt;
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setValue(f.label, isOn ? '' : opt)}
-                      style={{ padding: '6px 10px', borderRadius: 16, border: '1px solid #ccc', background: isOn ? '#111' : '#fff', color: isOn ? '#fff' : '#111' }}
-                    >
-                      {opt}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div key={f.id} style={{ display: 'grid', gap: 8 }}>
+              <label>{f.label}</label>
+              {f.type === 'checkbox' && (
+                <input type="checkbox" checked={!!values[f.label]} onChange={(e) => setValue(f.label, e.target.checked)} />
+              )}
+              {f.type === 'text' && (
+                <textarea value={values[f.label] ?? ''} onChange={(e) => setValue(f.label, e.target.value)} rows={3} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }} />
+              )}
+              {f.type === 'multiselect' && (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {(f.options || []).map((opt) => {
+                    const selected: string = values[f.label] || '';
+                    const isOn = selected === opt;
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setValue(f.label, isOn ? '' : opt)}
+                        style={{ padding: '6px 10px', borderRadius: 16, border: '1px solid #ccc', background: isOn ? '#111' : '#fff', color: isOn ? '#fff' : '#111' }}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )
         ))}
       </div>
 
