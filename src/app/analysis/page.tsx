@@ -161,6 +161,18 @@ export default function AnalysisPage() {
     return { teamAvg: +avg(teamVals).toFixed(2), othersAvg: +avg(othersVals).toFixed(2) };
   }
 
+  const hasTeamNumericData = (metric: string) => {
+    const tnum = Number(teamNumber);
+    if (!tnum) return false;
+    for (const r of rows) {
+      if (r.team_number === tnum) {
+        const v = Number((r.metrics as any)?.[metric]);
+        if (!Number.isNaN(v)) return true;
+      }
+    }
+    return false;
+  };
+
   function formatTime(iso?: string | null) {
     if (!iso) return '';
     try {
@@ -200,6 +212,7 @@ export default function AnalysisPage() {
           {/* Summary metric cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginBottom: 8 }}>
             {numericMetrics.map((metric) => {
+              if (!hasTeamNumericData(metric)) return null;
               const { teamAvg, othersAvg } = computeTeamVsField(metric);
               const deltaPct = othersAvg === 0 ? (teamAvg > 0 ? 100 : 0) : ((teamAvg - othersAvg) / othersAvg) * 100;
               // Hide cards with no data
@@ -219,6 +232,7 @@ export default function AnalysisPage() {
           {/* Team progression charts (compact) */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
             {numericMetrics.map((metric) => {
+              if (!hasTeamNumericData(metric)) return null;
               const data = rows
                 .filter((r) => r.team_number === Number(teamNumber))
                 .map((r) => ({ name: r.match_key, Team: Number(r.metrics?.[metric]) || 0 }))
@@ -273,7 +287,8 @@ export default function AnalysisPage() {
                 });
                 return { name: opt, Team: teamCount, Others: othersCount };
               });
-              if (counts.every(c => c.Team === 0 && c.Others === 0)) return null;
+              // hide if no team has entries for this metric
+              if (counts.every(c => c.Team === 0)) return null;
               return (
                 <div key={metric} style={{ height: 240, background: '#fafafa', border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
                   <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{metric}</div>
