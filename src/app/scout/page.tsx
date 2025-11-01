@@ -6,8 +6,23 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-type FieldType = 'counter' | 'checkbox' | 'text';
-type FormField = { id: string; label: string; type: FieldType };
+type FieldType = 'counter' | 'checkbox' | 'text' | 'multiselect';
+type FormField = { id: string; label: string; type: FieldType; options?: string[] };
+
+function naturalMatchCompare(a: string, b: string): number {
+  const rank = (t: string) => ({ qm: 1, qf: 2, sf: 3, f: 4 }[t] ?? 99);
+  const parse = (k: string) => {
+    // qm12 | qf1m2 | sf1m1 | f1m1
+    const m = k.match(/^(qm|qf|sf|f)(\d+)?(?:m(\d+))?$/);
+    if (!m) return { t: 'zz', a: 0, b: 0 };
+    return { t: m[1], a: Number(m[2] || 0), b: Number(m[3] || 0) };
+  };
+  const A = parse(a);
+  const B = parse(b);
+  if (rank(A.t) !== rank(B.t)) return rank(A.t) - rank(B.t);
+  if (A.a !== B.a) return A.a - B.a;
+  return A.b - B.b;
+}
 
 export default function ScoutPage() {
   const defaultSeason = new Date().getFullYear();
@@ -61,6 +76,7 @@ export default function ScoutPage() {
           if (f.type === 'counter') initial[f.label] = 0;
           if (f.type === 'checkbox') initial[f.label] = false;
           if (f.type === 'text') initial[f.label] = '';
+          if (f.type === 'multiselect') initial[f.label] = [] as string[];
         }
         setValues(initial);
         setStatus('');
@@ -100,7 +116,7 @@ export default function ScoutPage() {
         .eq('event_id', ev.id)
         .order('match_key');
       if (error) return;
-      const list = ((data as any[]) || []);
+      const list = ((data as any[]) || []).sort((a: any, b: any) => naturalMatchCompare(a.match_key, b.match_key));
       setMatches(list);
       if (list.length > 0) {
         const idx = list.findIndex((m) => m.match_key === matchKey);
@@ -146,6 +162,7 @@ export default function ScoutPage() {
       if (f.type === 'counter') reset[f.label] = 0;
       if (f.type === 'checkbox') reset[f.label] = false;
       if (f.type === 'text') reset[f.label] = '';
+      if (f.type === 'multiselect') reset[f.label] = [] as string[];
     }
     setValues(reset);
     setStatus('Submitted.');
@@ -255,6 +272,27 @@ export default function ScoutPage() {
             )}
             {f.type === 'text' && (
               <textarea value={values[f.label] ?? ''} onChange={(e) => setValue(f.label, e.target.value)} rows={3} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }} />
+            )}
+            {f.type === 'multiselect' && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {(f.options || []).map((opt) => {
+                  const selected: string[] = values[f.label] || [];
+                  const isOn = selected.includes(opt);
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => {
+                        const next = isOn ? selected.filter((x) => x !== opt) : [...selected, opt];
+                        setValue(f.label, next);
+                      }}
+                      style={{ padding: '6px 10px', borderRadius: 16, border: '1px solid #ccc', background: isOn ? '#111' : '#fff', color: isOn ? '#fff' : '#111' }}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
         ))}

@@ -6,12 +6,13 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-type FieldType = 'counter' | 'checkbox' | 'text';
+type FieldType = 'counter' | 'checkbox' | 'text' | 'multiselect';
 
 type FormField = {
   id: string;
   label: string;
   type: FieldType;
+  options?: string[]; // for multiselect
 };
 
 export default function FormBuilderPage() {
@@ -22,6 +23,7 @@ export default function FormBuilderPage() {
   const [status, setStatus] = useState<string>('');
   const [newLabel, setNewLabel] = useState<string>('');
   const [newType, setNewType] = useState<FieldType>('counter');
+  const [newOptions, setNewOptions] = useState<string>('');
 
   useEffect(() => {
     // require auth
@@ -49,8 +51,16 @@ export default function FormBuilderPage() {
   function addField() {
     if (!newLabel.trim()) return;
     const id = (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
-    setFields((prev) => [...prev, { id, label: newLabel.trim(), type: newType }]);
+    const field: FormField = { id, label: newLabel.trim(), type: newType };
+    if (newType === 'multiselect') {
+      field.options = newOptions
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    setFields((prev) => [...prev, field]);
     setNewLabel('');
+    setNewOptions('');
   }
 
   function removeField(id: string) {
@@ -99,6 +109,7 @@ export default function FormBuilderPage() {
             <option value="counter">Counter</option>
             <option value="checkbox">Checkbox</option>
             <option value="text">Text Input</option>
+            <option value="multiselect">Multi‑select</option>
           </select>
           <input
             value={newLabel}
@@ -106,6 +117,14 @@ export default function FormBuilderPage() {
             placeholder="Label (e.g., Auto Amp Notes)"
             style={{ flex: 1, padding: 6, border: '1px solid #ccc', borderRadius: 6 }}
           />
+          {newType === 'multiselect' && (
+            <input
+              value={newOptions}
+              onChange={(e) => setNewOptions(e.target.value)}
+              placeholder="Options comma‑separated (e.g., Deep, Shallow, Park, None)"
+              style={{ flex: 1, padding: 6, border: '1px solid #ccc', borderRadius: 6 }}
+            />
+          )}
           <button onClick={addField} style={{ padding: 8, borderRadius: 6, background: '#111', color: '#fff' }}>Add Field</button>
         </div>
       </div>
