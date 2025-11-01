@@ -46,13 +46,25 @@ export default function Header() {
             <div className="relative">
               <button className="px-2 py-1 rounded border" onClick={() => setMoreOpen((v) => !v)}>More ▾</button>
               {moreOpen && (
-                <div className="absolute mt-2 w-40 rounded border bg-white shadow dark:bg-black">
-                  <Link href="/check-in" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Check-in</Link>
-                  <Link href="/form-builder" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Form Builder</Link>
-                  <Link href="/pit/form-builder" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Pit Form Builder</Link>
-                  <Link href="/analysis" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Analysis</Link>
-                  <Link href="/leaderboard" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Leaderboard</Link>
-                  <Link href="/me" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Me</Link>
+                <div className="absolute mt-2 w-56 rounded border bg-white shadow dark:bg-black">
+                  <Link href="/check-in" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>
+                    <span className="mr-2">📍</span>Check-in
+                  </Link>
+                  <Link href="/form-builder" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>
+                    <span className="mr-2">📝</span>Match Form Builder
+                  </Link>
+                  <Link href="/pit/form-builder" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>
+                    <span className="mr-2">🛠️</span>Pit Form Builder
+                  </Link>
+                  <Link href="/analysis" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>
+                    <span className="mr-2">📊</span>Analysis
+                  </Link>
+                  <Link href="/leaderboard" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>
+                    <span className="mr-2">🏆</span>Leaderboard
+                  </Link>
+                  <Link href="/me" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>
+                    <span className="mr-2">🙋</span>Me
+                  </Link>
                 </div>
               )}
             </div>
@@ -72,13 +84,14 @@ export default function Header() {
       {mobileOpen && (
         <div className="md:hidden border-t px-4 pb-3">
           <nav className="flex flex-col gap-2 py-3">
-            <Link href="/scout" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Match Scouting</Link>
-            <Link href="/pit" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Pit Scouting</Link>
-            <Link href="/analysis" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Analysis</Link>
-            <Link href="/check-in" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Check-in</Link>
-            <Link href="/form-builder" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Form Builder</Link>
-            <Link href="/leaderboard" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Leaderboard</Link>
-            <Link href="/me" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Me</Link>
+            <Link href="/scout" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>📝 Match Scouting</Link>
+            <Link href="/pit" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>🛠️ Pit Scouting</Link>
+            <Link href="/analysis" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>📊 Analysis</Link>
+            <Link href="/check-in" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>📍 Check-in</Link>
+            <Link href="/form-builder" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>📝 Match Form Builder</Link>
+            <Link href="/pit/form-builder" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>🛠️ Pit Form Builder</Link>
+            <Link href="/leaderboard" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>🏆 Leaderboard</Link>
+            <Link href="/me" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>🙋 Me</Link>
           </nav>
         </div>
       )}
