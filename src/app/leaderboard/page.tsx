@@ -20,6 +20,7 @@ export default function LeaderboardPage() {
   const [scope, setScope] = useState<'event' | 'season'>('event');
   const [metric, setMetric] = useState<string>('');
   const [teamInfo, setTeamInfo] = useState<Record<number, { nickname?: string; name?: string; logo_url?: string }>>({});
+  const [counterKeys, setCounterKeys] = useState<string[]>([]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -58,6 +59,25 @@ export default function LeaderboardPage() {
       } else {
         setTeamInfo({});
       }
+    } catch {}
+    // Load form template to identify counter fields (for heatmap)
+    try {
+      let seasonYear = new Date().getFullYear();
+      if (scope === 'event') {
+        const ce = (typeof window !== 'undefined') ? localStorage.getItem('currentEventCode') : null;
+        if (ce && /^\d{4}/.test(ce)) seasonYear = parseInt(ce.slice(0,4), 10);
+      } else {
+        const first = entries[0];
+        if (first?.season) seasonYear = first.season;
+      }
+      const { data: tpl } = await supabase
+        .from('form_templates')
+        .select('form_definition')
+        .eq('season', seasonYear)
+        .maybeSingle();
+      const def = (tpl?.form_definition as any[]) || [];
+      const counters = def.filter((f: any) => f?.type === 'counter').map((f: any) => String(f.label));
+      setCounterKeys(counters);
     } catch {}
     setStatus('');
   }
@@ -101,6 +121,20 @@ export default function LeaderboardPage() {
     });
     return out;
   }, [rows, numericMetrics]);
+
+  // Per-metric max for heat map
+  const metricMax: Record<string, number> = useMemo(() => {
+    const maxes: Record<string, number> = {};
+    for (const key of numericMetrics) {
+      let m = 0;
+      for (const row of teamAverages) {
+        const v = row.avgs[key] || 0;
+        if (v > m) m = v;
+      }
+      maxes[key] = m;
+    }
+    return maxes;
+  }, [numericMetrics, teamAverages]);
 
   const sorted = useMemo(() => {
     const key = metric || (numericMetrics[0] || '');
@@ -160,9 +194,21 @@ export default function LeaderboardPage() {
                   </div>
                 </td>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{row.count}</td>
-                {numericMetrics.map((k) => (
-                  <td key={k} style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{row.avgs[k] ?? 0}</td>
-                ))}
+                {numericMetrics.map((k) => {
+                  const val = row.avgs[k] ?? 0;
+                  // Heat map only for counter fields
+                  const isCounter = counterKeys.includes(k);
+                  const max = metricMax[k] || 0;
+                  let style: any = { borderBottom: '1px solid #f0f0f0', padding: 6 };
+                  if (isCounter && max > 0 && val > 0) {
+                    const intensity = Math.max(0, Math.min(1, val / max));
+                    const alpha = 0.15 + 0.35 * intensity; // 0.15..0.5
+                    style = { ...style, backgroundColor: `rgba(16,185,129,${alpha})`, fontWeight: val === max ? 700 as any : 400 };
+                  }
+                  return (
+                    <td key={k} style={style}>{val}</td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
