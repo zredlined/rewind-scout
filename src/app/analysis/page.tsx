@@ -30,6 +30,9 @@ export default function AnalysisPage() {
   const [teamInfo, setTeamInfo] = useState<Record<number, { nickname?: string; name?: string; logo_url?: string }>>({});
   const [textKeys, setTextKeys] = useState<string[]>([]);
   const [multiKeys, setMultiKeys] = useState<string[]>([]);
+  // Pit scouting
+  const [pitRows, setPitRows] = useState<Array<{ team_number: number; metrics: any; photos?: string[]; created_at?: string; scouted_at?: string; season?: number; event_code?: string }>>([]);
+  const [pitTemplate, setPitTemplate] = useState<Array<{ id: string; label: string; type: string; options?: string[] }>>([]);
 
   async function load() {
     setStatus('Loading...');
@@ -79,7 +82,7 @@ export default function AnalysisPage() {
         } else {
           setTeamInfo({});
         }
-        // Determine field types from current season template to separate numeric/multi/text
+        // Determine field types from current season template to separate numeric/multi/text (match)
         let seasonYear = new Date().getFullYear();
         if (scope === 'event') {
           const first = entries[0];
@@ -107,6 +110,24 @@ export default function AnalysisPage() {
         });
         setTextKeys(tKeys);
         setMultiKeys(mKeys);
+
+        // Load pit entries (same scope filters)
+        let pq = supabase.from('pit_entries').select('team_number,metrics,photos,created_at,season,event_code');
+        if (scope === 'event') {
+          try { const ce = localStorage.getItem('currentEventCode'); if (ce) pq = pq.eq('event_code', ce); } catch {}
+        } else {
+          pq = pq.eq('season', seasonYear);
+        }
+        const { data: pRows } = await pq.order('created_at', { ascending: false });
+        setPitRows((pRows as any[]) || []);
+
+        // Load pit template for the same season
+        const { data: ptpl } = await supabase
+          .from('pit_templates')
+          .select('form_definition')
+          .eq('season', seasonYear)
+          .maybeSingle();
+        setPitTemplate(((ptpl?.form_definition as any[]) || []));
       } catch {}
       setStatus('');
     }
@@ -340,6 +361,44 @@ export default function AnalysisPage() {
           })}
         </div>
       </div>
+
+      {/* Pit scouting summary for selected team */}
+      {teamNumber && (
+        <div>
+          <h2>Pit scouting</h2>
+          {(() => {
+            const tnum = Number(teamNumber);
+            const teamPit = pitRows.filter(r => r.team_number === tnum);
+            if (!teamPit.length) return <div style={{ color: '#666' }}>No pit entry.</div>;
+            const entry = teamPit[0];
+            const photos: string[] = (entry.photos as any) || [];
+            return (
+              <div style={{ display: 'grid', gap: 10 }}>
+                {photos.length > 0 && (
+                  <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
+                    {photos.map((url, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={i} src={url} alt="robot" width={96} height={96} style={{ objectFit: 'cover', borderRadius: 6, border: '1px solid #eee' }} />
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: 'grid', gap: 6 }}>
+                  {pitTemplate.map((f) => {
+                    const val = (entry.metrics as any)?.[f.label];
+                    if (val === undefined || val === '' || (Array.isArray(val) && val.length === 0)) return null;
+                    return (
+                      <div key={f.id} style={{ display: 'flex', gap: 8 }}>
+                        <div style={{ width: 180, color: '#555' }}>{f.label}</div>
+                        <div style={{ fontWeight: 600 }}>{Array.isArray(val) ? val.join(', ') : String(val)}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
 
       <h2>Raw Entries</h2>
       <div style={{ overflowX: 'auto' }}>
