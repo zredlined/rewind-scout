@@ -25,8 +25,8 @@ create table if not exists scouting_entries (
 );
 
 -- TBA reference tables (used by import)
--- Teams (names/logos), optional but recommended
-create table if not exists teams (
+-- FRC Teams (names/logos) - use a separate table name to avoid collisions
+create table if not exists frc_teams (
   number int primary key,
   nickname text,
   name text,
@@ -63,7 +63,7 @@ alter table form_templates enable row level security;
 alter table scouting_entries enable row level security;
 alter table events enable row level security;
 alter table matches enable row level security;
-alter table teams enable row level security;
+alter table frc_teams enable row level security;
 
 drop policy if exists "form_templates rw auth" on form_templates;
 create policy "form_templates rw auth" on form_templates
@@ -83,9 +83,8 @@ drop policy if exists "matches rw (auth)" on matches;
 create policy "matches rw (auth)" on matches
 for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
-drop policy if exists "teams read (auth)" on teams;
-drop policy if exists "teams rw (auth)" on teams;
-create policy "teams rw (auth)" on teams
+drop policy if exists "frc_teams rw (auth)" on frc_teams;
+create policy "frc_teams rw (auth)" on frc_teams
 for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
 

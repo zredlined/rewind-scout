@@ -30,7 +30,7 @@ export async function POST(
   }));
 
   if (baseRows.length) {
-    const { error } = await supabaseAdmin.from("teams").upsert(baseRows, { onConflict: "number" });
+    const { error } = await supabaseAdmin.from("frc_teams").upsert(baseRows, { onConflict: "number" });
     if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 
@@ -49,7 +49,7 @@ export async function POST(
       const avatar = media.find((m: any) => m?.type === "avatar") || media.find((m: any) => m?.type === "team_image");
       const url = avatar?.direct_url;
       if (url) {
-        const { error } = await supabaseAdmin.from("teams").upsert({ number: tn, logo_url: url }, { onConflict: "number" });
+        const { error } = await supabaseAdmin.from("frc_teams").upsert({ number: tn, logo_url: url }, { onConflict: "number" });
         if (!error) withLogos += 1;
       }
     } catch {}

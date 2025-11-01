@@ -51,7 +51,7 @@ export default function LeaderboardPage() {
     try {
       const teamNums = Array.from(new Set(entries.map((r) => r.team_number).filter(Boolean)));
       if (teamNums.length > 0) {
-        const { data: teams } = await supabase.from('teams').select('number,nickname,name,logo_url').in('number', teamNums);
+        const { data: teams } = await supabase.from('frc_teams').select('number,nickname,name,logo_url').in('number', teamNums);
         const tmap: any = {};
         (teams as any[] || []).forEach((t) => { tmap[t.number] = { nickname: t.nickname, name: t.name, logo_url: t.logo_url }; });
         setTeamInfo(tmap);
