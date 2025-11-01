@@ -87,4 +87,33 @@ drop policy if exists "frc_teams rw (auth)" on frc_teams;
 create policy "frc_teams rw (auth)" on frc_teams
 for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
+-- Pit scouting tables
+create table if not exists pit_templates (
+  season int primary key,
+  form_definition jsonb not null default '[]'::jsonb,
+  created_at timestamptz default now()
+);
+
+create table if not exists pit_entries (
+  id uuid primary key default gen_random_uuid(),
+  season int not null,
+  event_code text not null,
+  team_number int not null,
+  scout_id uuid,
+  metrics jsonb not null default '{}'::jsonb,
+  photos jsonb not null default '[]'::jsonb,
+  created_at timestamptz default now()
+);
+
+alter table pit_templates enable row level security;
+alter table pit_entries enable row level security;
+
+drop policy if exists "pit_templates rw (auth)" on pit_templates;
+create policy "pit_templates rw (auth)" on pit_templates
+for all using (auth.uid() is not null) with check (auth.uid() is not null);
+
+drop policy if exists "pit_entries rw (auth)" on pit_entries;
+create policy "pit_entries rw (auth)" on pit_entries
+for all using (auth.uid() is not null) with check (auth.uid() is not null);
+
 

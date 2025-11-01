@@ -49,6 +49,7 @@ export default function Header() {
                 <div className="absolute mt-2 w-40 rounded border bg-white shadow dark:bg-black">
                   <Link href="/check-in" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Check-in</Link>
                   <Link href="/form-builder" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Form Builder</Link>
+                  <Link href="/pit/form-builder" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Pit Form Builder</Link>
                   <Link href="/analysis" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Analysis</Link>
                   <Link href="/leaderboard" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Leaderboard</Link>
                   <Link href="/me" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Me</Link>
