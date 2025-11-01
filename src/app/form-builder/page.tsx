@@ -67,6 +67,20 @@ export default function FormBuilderPage() {
     setFields((prev) => prev.filter((f) => f.id !== id));
   }
 
+  function moveField(id: string, direction: 'up' | 'down') {
+    setFields((prev) => {
+      const idx = prev.findIndex((f) => f.id === id);
+      if (idx === -1) return prev;
+      const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= prev.length) return prev;
+      const next = prev.slice();
+      const tmp = next[idx];
+      next[idx] = next[targetIdx];
+      next[targetIdx] = tmp;
+      return next;
+    });
+  }
+
   async function save() {
     setStatus('Saving...');
     const { error } = await supabase
@@ -96,11 +110,27 @@ export default function FormBuilderPage() {
       <div style={{ marginTop: 16, display: 'grid', gap: 8 }}>
         <h2>Fields</h2>
         {fields.length === 0 && <div>No fields yet.</div>}
-        {fields.map((f) => (
+        {fields.map((f, i) => (
           <div key={f.id} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
             <span style={{ width: 120, fontFamily: 'monospace' }}>{f.type}</span>
-            <span>{f.label}</span>
-            <button onClick={() => removeField(f.id)} style={{ marginLeft: 'auto', padding: 6, borderRadius: 6, background: '#eee' }}>Remove</button>
+            <span style={{ flex: 1 }}>{f.label}</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => moveField(f.id, 'up')}
+                disabled={i === 0}
+                style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ccc', opacity: i === 0 ? 0.5 : 1 }}
+              >
+                ↑
+              </button>
+              <button
+                onClick={() => moveField(f.id, 'down')}
+                disabled={i === fields.length - 1}
+                style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ccc', opacity: i === fields.length - 1 ? 0.5 : 1 }}
+              >
+                ↓
+              </button>
+              <button onClick={() => removeField(f.id)} style={{ padding: 6, borderRadius: 6, background: '#eee' }}>Remove</button>
+            </div>
           </div>
         ))}
 
