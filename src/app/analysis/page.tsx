@@ -92,6 +92,23 @@ export default function AnalysisPage() {
     return Array.from(candidates).sort();
   }, [rows]);
 
+  const categoricalMetrics = useMemo(() => {
+    const candidates = new Set<string>();
+    for (const r of rows) {
+      const m = r.metrics || {};
+      for (const [k, v] of Object.entries(m)) {
+        if (Array.isArray(v)) {
+          if (v.length) candidates.add(k);
+        } else if (typeof v === 'string') {
+          if (v.trim().length) candidates.add(k);
+        }
+      }
+    }
+    // exclude numeric-like strings that already appear in numericMetrics
+    numericMetrics.forEach((k) => candidates.delete(k));
+    return Array.from(candidates).sort();
+  }, [rows, numericMetrics]);
+
   function computeTeamVsField(metric: string) {
     const isTeamRow = (r: Entry) => teamNumber && r.team_number === Number(teamNumber);
     const numeric = rows
@@ -174,6 +191,55 @@ export default function AnalysisPage() {
                       <YAxis />
                       <Tooltip />
                       <Legend />
+                      <Bar dataKey="Team" fill="#8884d8" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {categoricalMetrics.length > 0 && (
+        <>
+          <h2>Multi‑select metrics</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+            {categoricalMetrics.map((metric) => {
+              // collect all option values seen for this metric
+              const optionSet = new Set<string>();
+              rows.forEach((r) => {
+                const v: any = (r.metrics as any)?.[metric];
+                if (Array.isArray(v)) v.forEach((x) => optionSet.add(String(x)));
+                else if (typeof v === 'string' && v) optionSet.add(v);
+              });
+              const options = Array.from(optionSet).sort();
+              // counts for team vs others per option
+              const teamNum = Number(teamNumber);
+              const counts = options.map((opt) => {
+                let teamCount = 0;
+                let othersCount = 0;
+                rows.forEach((r) => {
+                  const isTeam = teamNumber ? r.team_number === teamNum : false;
+                  const v: any = (r.metrics as any)?.[metric];
+                  const has = Array.isArray(v) ? v.includes(opt) : v === opt;
+                  if (has) {
+                    if (isTeam) teamCount += 1; else othersCount += 1;
+                  }
+                });
+                return { name: opt, Team: teamCount, Others: othersCount };
+              });
+              return (
+                <div key={metric} style={{ height: 240, background: '#fafafa', border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
+                  <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{metric}</div>
+                  <ResponsiveContainer width="100%" height="85%">
+                    <BarChart data={counts} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="Others" fill="#c1c1ff" />
                       <Bar dataKey="Team" fill="#8884d8" />
                     </BarChart>
                   </ResponsiveContainer>
