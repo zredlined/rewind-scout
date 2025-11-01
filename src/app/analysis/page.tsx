@@ -28,6 +28,8 @@ export default function AnalysisPage() {
   const [scope, setScope] = useState<'event' | 'season'>('event');
   const [eventNames, setEventNames] = useState<Record<string, string>>({});
   const [teamInfo, setTeamInfo] = useState<Record<number, { nickname?: string; name?: string; logo_url?: string }>>({});
+  const [textKeys, setTextKeys] = useState<string[]>([]);
+  const [multiKeys, setMultiKeys] = useState<string[]>([]);
 
   async function load() {
     setStatus('Loading...');
@@ -77,6 +79,34 @@ export default function AnalysisPage() {
         } else {
           setTeamInfo({});
         }
+        // Determine field types from current season template to separate numeric/multi/text
+        let seasonYear = new Date().getFullYear();
+        if (scope === 'event') {
+          const first = entries[0];
+          if (first?.season) seasonYear = first.season;
+          else {
+            const ce = (typeof window !== 'undefined') ? localStorage.getItem('currentEventCode') : null;
+            if (ce && /^\d{4}/.test(ce)) seasonYear = parseInt(ce.slice(0,4), 10);
+          }
+        } else {
+          // already based on season
+          const first = entries[0];
+          if (first?.season) seasonYear = first.season;
+        }
+        const { data: tpl } = await supabase
+          .from('form_templates')
+          .select('form_definition')
+          .eq('season', seasonYear)
+          .maybeSingle();
+        const def = (tpl?.form_definition as any[]) || [];
+        const tKeys: string[] = [];
+        const mKeys: string[] = [];
+        def.forEach((f: any) => {
+          if (f?.type === 'text') tKeys.push(String(f.label));
+          if (f?.type === 'multiselect') mKeys.push(String(f.label));
+        });
+        setTextKeys(tKeys);
+        setMultiKeys(mKeys);
       } catch {}
       setStatus('');
     }
@@ -100,25 +130,25 @@ export default function AnalysisPage() {
         if (!Number.isNaN(n)) candidates.add(k);
       }
     }
-    return Array.from(candidates).sort();
-  }, [rows]);
+    // exclude known text keys
+    const filtered = Array.from(candidates).filter((k) => !textKeys.includes(k));
+    return filtered.sort();
+  }, [rows, textKeys]);
 
   const categoricalMetrics = useMemo(() => {
-    const candidates = new Set<string>();
+    // Only include fields declared as multiselect in template
+    const set = new Set(multiKeys);
+    // Ensure there is data for them
+    const available = new Set<string>();
     for (const r of rows) {
       const m = r.metrics || {};
-      for (const [k, v] of Object.entries(m)) {
-        if (Array.isArray(v)) {
-          if (v.length) candidates.add(k);
-        } else if (typeof v === 'string') {
-          if (v.trim().length) candidates.add(k);
-        }
+      for (const key of set) {
+        const v: any = (m as any)[key];
+        if ((Array.isArray(v) && v.length) || (typeof v === 'string' && v.trim().length)) available.add(key);
       }
     }
-    // exclude numeric-like strings that already appear in numericMetrics
-    numericMetrics.forEach((k) => candidates.delete(k));
-    return Array.from(candidates).sort();
-  }, [rows, numericMetrics]);
+    return Array.from(available).sort();
+  }, [rows, multiKeys]);
 
   function computeTeamVsField(metric: string) {
     const isTeamRow = (r: Entry) => teamNumber && r.team_number === Number(teamNumber);
@@ -172,6 +202,8 @@ export default function AnalysisPage() {
             {numericMetrics.map((metric) => {
               const { teamAvg, othersAvg } = computeTeamVsField(metric);
               const deltaPct = othersAvg === 0 ? (teamAvg > 0 ? 100 : 0) : ((teamAvg - othersAvg) / othersAvg) * 100;
+              // Hide cards with no data
+              if (Number.isNaN(teamAvg) && Number.isNaN(othersAvg)) return null;
               return (
                 <div key={metric} style={{ border: '1px solid #eee', borderRadius: 8, padding: 12, background: '#fafafa' }}>
                   <div style={{ fontSize: 12, color: '#666' }}>{metric}</div>
@@ -192,6 +224,7 @@ export default function AnalysisPage() {
                 .map((r) => ({ name: r.match_key, Team: Number(r.metrics?.[metric]) || 0 }))
                 .filter((d) => !Number.isNaN(d.Team))
                 .reverse(); // newest first above; reverse for progression
+              if (data.length === 0) return null; // hide empty charts
               return (
                 <div key={metric} style={{ height: 220, background: '#fafafa', border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
                   <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{metric}</div>
@@ -240,6 +273,7 @@ export default function AnalysisPage() {
                 });
                 return { name: opt, Team: teamCount, Others: othersCount };
               });
+              if (counts.every(c => c.Team === 0 && c.Others === 0)) return null;
               return (
                 <div key={metric} style={{ height: 240, background: '#fafafa', border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
                   <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{metric}</div>
@@ -261,25 +295,32 @@ export default function AnalysisPage() {
         </>
       )}
 
-      {/* Recent comments (if any) */}
+      {/* Recent text fields (bottom) */}
       <div>
-        <h2>Recent comments</h2>
-        <div style={{ display: 'grid', gap: 8 }}>
-          {(() => {
-            const keyGuess = 'comments';
+        <h2>Recent text notes</h2>
+        {textKeys.length === 0 && <div style={{ color: '#666' }}>No text fields configured.</div>}
+        <div style={{ display: 'grid', gap: 12 }}>
+          {textKeys.map((key) => {
             const teamRows = rows.filter((r) => r.team_number === Number(teamNumber));
-            const comments = teamRows
-              .map((r) => ({ t: formatTime(r.scouted_at ?? r.created_at), c: String((r.metrics as any)?.[keyGuess] ?? '') }))
+            const notes = teamRows
+              .map((r) => ({ t: formatTime(r.scouted_at ?? r.created_at), c: String((r.metrics as any)?.[key] ?? '') }))
               .filter((x) => x.c && x.c.trim().length > 0)
               .slice(0, 5);
-            if (comments.length === 0) return <div style={{ color: '#666' }}>No recent comments.</div>;
-            return comments.map((x, i) => (
-              <div key={i} style={{ border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
-                <div style={{ fontSize: 12, color: '#666' }}>{x.t}</div>
-                <div>{x.c}</div>
+            if (notes.length === 0) return null;
+            return (
+              <div key={key}>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>{key}</div>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {notes.map((x, i) => (
+                    <div key={i} style={{ border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
+                      <div style={{ fontSize: 12, color: '#666' }}>{x.t}</div>
+                      <div>{x.c}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ));
-          })()}
+            );
+          })}
         </div>
       </div>
 
