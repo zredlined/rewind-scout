@@ -162,12 +162,14 @@ export default function AnalysisPage() {
   }
 
   const hasTeamNumericData = (metric: string) => {
+    // Consider "has data" only if the team has at least one non-zero numeric entry for this metric
     const tnum = Number(teamNumber);
     if (!tnum) return false;
     for (const r of rows) {
       if (r.team_number === tnum) {
-        const v = Number((r.metrics as any)?.[metric]);
-        if (!Number.isNaN(v)) return true;
+        const raw = (r.metrics as any)?.[metric];
+        const v = Number(raw);
+        if (!Number.isNaN(v) && v > 0) return true;
       }
     }
     return false;
