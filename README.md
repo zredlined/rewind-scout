@@ -29,6 +29,14 @@ Set in Vercel Project Settings → Environment Variables (and `.env.local` for l
 - `SUPABASE_SERVICE_ROLE_KEY` = Supabase service role key (server‑only)
 - `TBA_AUTH_KEY` = TBA API Read Key (server‑only)
 
+Create `.env.local` for local dev:
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+TBA_AUTH_KEY=your_tba_key
+```
+
 ## Bootstrap the database
 Run the SQL in `sql/bootstrap.sql` inside Supabase SQL editor. It creates:
 - `form_templates` (season form definition)
@@ -38,6 +46,15 @@ Run the SQL in `sql/bootstrap.sql` inside Supabase SQL editor. It creates:
 - minimal `events` and `matches` tables used by TBA import
 
 File: `sql/bootstrap.sql`
+
+If you need to add policies manually, note: Postgres does not support `create policy if not exists`. Use:
+```sql
+drop policy if exists "events read (auth)" on events;
+create policy "events read (auth)" on events for select using (auth.uid() is not null);
+
+drop policy if exists "matches read (auth)" on matches;
+create policy "matches read (auth)" on matches for select using (auth.uid() is not null);
+```
 
 ## Local development
 ```bash
