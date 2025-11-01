@@ -74,15 +74,18 @@ create policy "scouting_entries rw auth" on scouting_entries
 for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
 drop policy if exists "events read (auth)" on events;
-create policy "events read (auth)" on events
-for select using (auth.uid() is not null);
+drop policy if exists "events rw (auth)" on events;
+create policy "events rw (auth)" on events
+for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
 drop policy if exists "matches read (auth)" on matches;
-create policy "matches read (auth)" on matches
-for select using (auth.uid() is not null);
+drop policy if exists "matches rw (auth)" on matches;
+create policy "matches rw (auth)" on matches
+for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
 drop policy if exists "teams read (auth)" on teams;
-create policy "teams read (auth)" on teams
-for select using (auth.uid() is not null);
+drop policy if exists "teams rw (auth)" on teams;
+create policy "teams rw (auth)" on teams
+for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
 

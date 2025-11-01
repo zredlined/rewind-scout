@@ -43,13 +43,22 @@ export default function CheckInPage() {
     const res = await fetch(`/api/tba/events/${encodeURIComponent(code)}/matches`, { method: 'POST' });
     if (!res.ok) {
       const d = await res.json().catch(() => ({}));
-      setStatus(`Error: ${d?.error || res.statusText}`);
+      console.error('Match import failed', d);
+      setStatus(`Match import failed: ${d?.error || res.statusText}`);
       return;
     }
-    // Import teams (names/logos) best-effort
+    setStatus('Importing teams...');
     try {
-      await fetch(`/api/tba/events/${encodeURIComponent(code)}/teams`, { method: 'POST' });
-    } catch {}
+      const teamRes = await fetch(`/api/tba/events/${encodeURIComponent(code)}/teams`, { method: 'POST' });
+      if (!teamRes.ok) {
+        const td = await teamRes.json().catch(() => ({}));
+        console.error('Team import failed', td);
+        setStatus('Matches imported, but team import failed.');
+      }
+    } catch (e) {
+      console.error('Team import fetch error:', e);
+      setStatus('Matches imported, but team import failed.');
+    }
     try {
       localStorage.setItem('currentEventCode', code);
     } catch {}
