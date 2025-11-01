@@ -41,14 +41,15 @@ export default function Header() {
           <button className="md:hidden p-2 border rounded" onClick={() => setMobileOpen((v) => !v)} aria-label="Toggle menu">☰</button>
           <Link href="/" className="font-semibold">FRC Scouting</Link>
           <nav className="hidden md:flex items-center gap-3">
-            <Link href="/scout" className="px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900">Scout</Link>
-            <Link href="/analysis" className="px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900">Analysis</Link>
+            <Link href="/scout" className="px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900">Match Scouting</Link>
+            <Link href="/pit" className="px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900">Pit Scouting</Link>
             <div className="relative">
               <button className="px-2 py-1 rounded border" onClick={() => setMoreOpen((v) => !v)}>More ▾</button>
               {moreOpen && (
                 <div className="absolute mt-2 w-40 rounded border bg-white shadow dark:bg-black">
                   <Link href="/check-in" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Check-in</Link>
                   <Link href="/form-builder" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Form Builder</Link>
+                  <Link href="/analysis" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Analysis</Link>
                   <Link href="/leaderboard" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Leaderboard</Link>
                   <Link href="/me" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Me</Link>
                 </div>
@@ -70,7 +71,8 @@ export default function Header() {
       {mobileOpen && (
         <div className="md:hidden border-t px-4 pb-3">
           <nav className="flex flex-col gap-2 py-3">
-            <Link href="/scout" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Scout</Link>
+            <Link href="/scout" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Match Scouting</Link>
+            <Link href="/pit" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Pit Scouting</Link>
             <Link href="/analysis" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Analysis</Link>
             <Link href="/check-in" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Check-in</Link>
             <Link href="/form-builder" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Form Builder</Link>
