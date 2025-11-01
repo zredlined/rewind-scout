@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase';
 
 export default function Header() {
   const [email, setEmail] = useState<string | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -24,7 +26,6 @@ export default function Header() {
 
   async function logout() {
     await supabase.auth.signOut();
-    // no redirect here; header will update
   }
 
   const initials = useMemo(() => {
@@ -34,24 +35,48 @@ export default function Header() {
   }, [email]);
 
   return (
-    <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid #eee' }}>
-      <nav style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        <Link href="/" style={{ fontWeight: 600 }}>FRC Scouting</Link>
-        <Link href="/check-in">Check-in</Link>
-        <Link href="/scout">Scout</Link>
-        <Link href="/analysis">Analysis</Link>
-        <Link href="/form-builder">Form Builder</Link>
-      </nav>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        {email ? (
-          <>
-            <div style={{ width: 28, height: 28, borderRadius: 14, background: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>{initials}</div>
-            <button onClick={logout} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ccc' }}>Log out</button>
-          </>
-        ) : (
-          <Link href="/login" style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ccc' }}>Login</Link>
-        )}
+    <header className="sticky top-0 z-10 border-b bg-white/90 backdrop-blur dark:bg-black/90">
+      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-3">
+          <button className="md:hidden p-2 border rounded" onClick={() => setMobileOpen((v) => !v)} aria-label="Toggle menu">☰</button>
+          <Link href="/" className="font-semibold">FRC Scouting</Link>
+          <nav className="hidden md:flex items-center gap-3">
+            <Link href="/scout" className="px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900">Scout</Link>
+            <Link href="/analysis" className="px-2 py-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900">Analysis</Link>
+            <div className="relative">
+              <button className="px-2 py-1 rounded border" onClick={() => setMoreOpen((v) => !v)}>More ▾</button>
+              {moreOpen && (
+                <div className="absolute mt-2 w-40 rounded border bg-white shadow dark:bg-black">
+                  <Link href="/check-in" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Check-in</Link>
+                  <Link href="/form-builder" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Form Builder</Link>
+                  <Link href="/me" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Me</Link>
+                </div>
+              )}
+            </div>
+          </nav>
+        </div>
+        <div className="flex items-center gap-3">
+          {email ? (
+            <>
+              <Link href="/me" className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-xs">{initials}</Link>
+              <button onClick={logout} className="px-3 py-1 rounded border">Log out</button>
+            </>
+          ) : (
+            <Link href="/login" className="px-3 py-1 rounded border">Login</Link>
+          )}
+        </div>
       </div>
+      {mobileOpen && (
+        <div className="md:hidden border-t px-4 pb-3">
+          <nav className="flex flex-col gap-2 py-3">
+            <Link href="/scout" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Scout</Link>
+            <Link href="/analysis" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Analysis</Link>
+            <Link href="/check-in" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Check-in</Link>
+            <Link href="/form-builder" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Form Builder</Link>
+            <Link href="/me" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Me</Link>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

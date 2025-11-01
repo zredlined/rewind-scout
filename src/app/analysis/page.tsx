@@ -156,12 +156,14 @@ export default function AnalysisPage() {
             })}
           </div>
 
-          {/* Compact charts (optional detail) */}
+          {/* Team progression charts (compact) */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
             {numericMetrics.map((metric) => {
               const data = rows
-                .map((r) => ({ name: r.match_key, Team: r.team_number === Number(teamNumber) ? Number(r.metrics?.[metric]) || 0 : 0, Others: Number(r.metrics?.[metric]) || 0 }))
-                .filter((d) => !Number.isNaN(d.Others));
+                .filter((r) => r.team_number === Number(teamNumber))
+                .map((r) => ({ name: r.match_key, Team: Number(r.metrics?.[metric]) || 0 }))
+                .filter((d) => !Number.isNaN(d.Team))
+                .reverse(); // newest first above; reverse for progression
               return (
                 <div key={metric} style={{ height: 220, background: '#fafafa', border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
                   <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{metric}</div>
@@ -172,7 +174,6 @@ export default function AnalysisPage() {
                       <YAxis />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="Others" fill="#c1c1ff" />
                       <Bar dataKey="Team" fill="#8884d8" />
                     </BarChart>
                   </ResponsiveContainer>
@@ -182,6 +183,28 @@ export default function AnalysisPage() {
           </div>
         </>
       )}
+
+      {/* Recent comments (if any) */}
+      <div>
+        <h2>Recent comments</h2>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {(() => {
+            const keyGuess = 'comments';
+            const teamRows = rows.filter((r) => r.team_number === Number(teamNumber));
+            const comments = teamRows
+              .map((r) => ({ t: formatTime(r.scouted_at ?? r.created_at), c: String((r.metrics as any)?.[keyGuess] ?? '') }))
+              .filter((x) => x.c && x.c.trim().length > 0)
+              .slice(0, 5);
+            if (comments.length === 0) return <div style={{ color: '#666' }}>No recent comments.</div>;
+            return comments.map((x, i) => (
+              <div key={i} style={{ border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
+                <div style={{ fontSize: 12, color: '#666' }}>{x.t}</div>
+                <div>{x.c}</div>
+              </div>
+            ));
+          })()}
+        </div>
+      </div>
 
       <h2>Raw Entries</h2>
       <div style={{ overflowX: 'auto' }}>
