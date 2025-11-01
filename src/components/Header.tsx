@@ -49,6 +49,7 @@ export default function Header() {
                 <div className="absolute mt-2 w-40 rounded border bg-white shadow dark:bg-black">
                   <Link href="/check-in" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Check-in</Link>
                   <Link href="/form-builder" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Form Builder</Link>
+                  <Link href="/leaderboard" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Leaderboard</Link>
                   <Link href="/me" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>Me</Link>
                 </div>
               )}
@@ -73,6 +74,7 @@ export default function Header() {
             <Link href="/analysis" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Analysis</Link>
             <Link href="/check-in" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Check-in</Link>
             <Link href="/form-builder" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Form Builder</Link>
+            <Link href="/leaderboard" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Leaderboard</Link>
             <Link href="/me" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>Me</Link>
           </nav>
         </div>
