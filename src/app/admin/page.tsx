@@ -33,7 +33,11 @@ export default function AdminPage() {
   async function deleteAll() {
     if (!confirm('Delete ALL scouting entries?')) return;
     setStatus('Deleting all...');
-    const { error } = await supabase.from('scouting_entries').delete().neq('id', '');
+    // Supabase client requires a filter on delete(); use a wide created_at range
+    const { error } = await supabase
+      .from('scouting_entries')
+      .delete()
+      .gte('created_at', '1970-01-01T00:00:00Z');
     setStatus(error ? `Error: ${error.message}` : 'Deleted all entries.');
   }
 
