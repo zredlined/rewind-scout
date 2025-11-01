@@ -3,9 +3,9 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { code: string } }
+  context: { params: Promise<{ code: string }> }
 ) {
-  const code = params.code;
+  const { code } = await context.params;
   const tbaKey = process.env.TBA_AUTH_KEY;
   if (!tbaKey || !supabaseAdmin) {
     return new Response(JSON.stringify({ error: "Missing TBA or Supabase keys" }), { status: 500 });
