@@ -261,10 +261,40 @@ export default function ScoutPage() {
           <div key={f.id} style={{ display: 'grid', gap: 8 }}>
             <label>{f.label}</label>
             {f.type === 'counter' && (
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button onClick={() => setValue(f.label, Math.max(0, (values[f.label] ?? 0) - 1))} style={{ padding: 8 }}>-</button>
-                <span style={{ minWidth: 32, textAlign: 'center' }}>{values[f.label] ?? 0}</span>
-                <button onClick={() => setValue(f.label, (values[f.label] ?? 0) + 1)} style={{ padding: 8 }}>+</button>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <button
+                  aria-label={`Decrement ${f.label}`}
+                  onClick={() => setValue(f.label, Math.max(0, (values[f.label] ?? 0) - 1))}
+                  style={{
+                    width: 48,
+                    height: 48,
+                    fontSize: 22,
+                    lineHeight: '22px',
+                    borderRadius: 12,
+                    border: '1px solid #ccc',
+                    background: '#f5f5f5'
+                  }}
+                >
+                  −
+                </button>
+                <span style={{ minWidth: 48, textAlign: 'center', fontSize: 20, fontWeight: 700 }}>
+                  {values[f.label] ?? 0}
+                </span>
+                <button
+                  aria-label={`Increment ${f.label}`}
+                  onClick={() => setValue(f.label, (values[f.label] ?? 0) + 1)}
+                  style={{
+                    width: 48,
+                    height: 48,
+                    fontSize: 22,
+                    lineHeight: '22px',
+                    borderRadius: 12,
+                    border: '1px solid #ccc',
+                    background: '#f5f5f5'
+                  }}
+                >
+                  +
+                </button>
               </div>
             )}
             {f.type === 'checkbox' && (
