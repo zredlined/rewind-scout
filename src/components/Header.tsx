@@ -63,7 +63,7 @@ export default function Header() {
                     <span className="mr-2">🏆</span>Leaderboard
                   </Link>
                   <Link href="/me" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>
-                    <span className="mr-2">🙋</span>Me
+                    <span className="mr-2">🙋</span>Scouts
                   </Link>
                 </div>
               )}
@@ -91,7 +91,7 @@ export default function Header() {
             <Link href="/form-builder" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>📝 Match Form Builder</Link>
             <Link href="/pit/form-builder" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>🛠️ Pit Form Builder</Link>
             <Link href="/leaderboard" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>🏆 Leaderboard</Link>
-            <Link href="/me" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>🙋 Me</Link>
+            <Link href="/me" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>🙋 Scouts</Link>
           </nav>
         </div>
       )}

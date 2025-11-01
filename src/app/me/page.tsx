@@ -67,6 +67,11 @@ export default function MePage() {
       });
     }
 
+    // Ensure current user shows a friendly label even if profile is missing
+    if (meId) {
+      if (!people[meId]) people[meId] = { name: meEmail || meId, email: meEmail || '' };
+    }
+
     const out: LeaderRow[] = ids.map(id => {
       const matchCount = matchCounts.get(id) || 0;
       const pitCount = pitCounts.get(id) || 0;
