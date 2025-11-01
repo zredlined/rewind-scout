@@ -46,6 +46,10 @@ export default function CheckInPage() {
       setStatus(`Error: ${d?.error || res.statusText}`);
       return;
     }
+    // Import teams (names/logos) best-effort
+    try {
+      await fetch(`/api/tba/events/${encodeURIComponent(code)}/teams`, { method: 'POST' });
+    } catch {}
     try {
       localStorage.setItem('currentEventCode', code);
     } catch {}

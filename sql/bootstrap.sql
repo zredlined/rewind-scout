@@ -25,6 +25,15 @@ create table if not exists scouting_entries (
 );
 
 -- TBA reference tables (used by import)
+-- Teams (names/logos), optional but recommended
+create table if not exists teams (
+  number int primary key,
+  nickname text,
+  name text,
+  logo_url text,
+  updated_at timestamptz default now()
+);
+
 create table if not exists events (
   id uuid primary key default gen_random_uuid(),
   code text not null unique,
@@ -54,6 +63,7 @@ alter table form_templates enable row level security;
 alter table scouting_entries enable row level security;
 alter table events enable row level security;
 alter table matches enable row level security;
+alter table teams enable row level security;
 
 drop policy if exists "form_templates rw auth" on form_templates;
 create policy "form_templates rw auth" on form_templates
@@ -69,6 +79,10 @@ for select using (auth.uid() is not null);
 
 drop policy if exists "matches read (auth)" on matches;
 create policy "matches read (auth)" on matches
+for select using (auth.uid() is not null);
+
+drop policy if exists "teams read (auth)" on teams;
+create policy "teams read (auth)" on teams
 for select using (auth.uid() is not null);
 
 

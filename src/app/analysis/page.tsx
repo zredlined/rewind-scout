@@ -27,6 +27,7 @@ export default function AnalysisPage() {
   const [status, setStatus] = useState<string>('');
   const [scope, setScope] = useState<'event' | 'season'>('event');
   const [eventNames, setEventNames] = useState<Record<string, string>>({});
+  const [teamInfo, setTeamInfo] = useState<Record<number, { nickname?: string; name?: string; logo_url?: string }>>({});
 
   async function load() {
     setStatus('Loading...');
@@ -65,6 +66,16 @@ export default function AnalysisPage() {
           setEventNames(map);
         } else {
           setEventNames({});
+        }
+        // Load team names/logos
+        const teamNums = Array.from(new Set(entries.map((r) => r.team_number).filter(Boolean)));
+        if (teamNums.length > 0) {
+          const { data: teams } = await supabase.from('teams').select('number,nickname,name,logo_url').in('number', teamNums);
+          const tmap: any = {};
+          (teams as any[] || []).forEach((t) => { tmap[t.number] = { nickname: t.nickname, name: t.name, logo_url: t.logo_url }; });
+          setTeamInfo(tmap);
+        } else {
+          setTeamInfo({});
         }
       } catch {}
       setStatus('');
@@ -289,7 +300,15 @@ export default function AnalysisPage() {
             {(teamNumber ? rows.filter((r) => r.team_number === Number(teamNumber)) : []).map((r) => (
               <tr key={r.id}>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.match_key}</td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.team_number}</td>
+                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {teamInfo[r.team_number]?.logo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={teamInfo[r.team_number]!.logo_url!} alt="" width={18} height={18} style={{ borderRadius: 4 }} />
+                    ) : null}
+                    <span>{teamInfo[r.team_number]?.nickname || teamInfo[r.team_number]?.name || r.team_number}</span>
+                  </div>
+                </td>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{eventNames[r.event_code] ?? r.event_code}</td>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.scout_name ?? ''}</td>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{formatTime(r.scouted_at ?? r.created_at)}</td>

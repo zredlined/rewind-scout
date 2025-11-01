@@ -19,6 +19,7 @@ export default function LeaderboardPage() {
   const [status, setStatus] = useState('');
   const [scope, setScope] = useState<'event' | 'season'>('event');
   const [metric, setMetric] = useState<string>('');
+  const [teamInfo, setTeamInfo] = useState<Record<number, { nickname?: string; name?: string; logo_url?: string }>>({});
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -44,7 +45,20 @@ export default function LeaderboardPage() {
     }
     const { data, error } = await q;
     if (error) { setStatus(`Error: ${error.message}`); return; }
-    setRows((data as any[]) as Entry[]);
+    const entries = (data as any[]) as Entry[];
+    setRows(entries);
+    // load team names/logos for the teams present
+    try {
+      const teamNums = Array.from(new Set(entries.map((r) => r.team_number).filter(Boolean)));
+      if (teamNums.length > 0) {
+        const { data: teams } = await supabase.from('teams').select('number,nickname,name,logo_url').in('number', teamNums);
+        const tmap: any = {};
+        (teams as any[] || []).forEach((t) => { tmap[t.number] = { nickname: t.nickname, name: t.name, logo_url: t.logo_url }; });
+        setTeamInfo(tmap);
+      } else {
+        setTeamInfo({});
+      }
+    } catch {}
     setStatus('');
   }
 
@@ -136,7 +150,15 @@ export default function LeaderboardPage() {
             {sorted.map((row, idx) => (
               <tr key={row.team}>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{idx + 1}</td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{row.team}</td>
+                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {teamInfo[row.team]?.logo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={teamInfo[row.team]!.logo_url!} alt="" width={18} height={18} style={{ borderRadius: 4 }} />
+                    ) : null}
+                    <span>{teamInfo[row.team]?.nickname || teamInfo[row.team]?.name || row.team}</span>
+                  </div>
+                </td>
                 <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{row.count}</td>
                 {numericMetrics.map((k) => (
                   <td key={k} style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{row.avgs[k] ?? 0}</td>
