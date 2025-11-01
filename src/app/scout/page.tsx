@@ -76,7 +76,7 @@ export default function ScoutPage() {
           if (f.type === 'counter') initial[f.label] = 0;
           if (f.type === 'checkbox') initial[f.label] = false;
           if (f.type === 'text') initial[f.label] = '';
-          if (f.type === 'multiselect') initial[f.label] = [] as string[];
+          if (f.type === 'multiselect') initial[f.label] = '';
         }
         setValues(initial);
         setStatus('');
@@ -162,7 +162,7 @@ export default function ScoutPage() {
       if (f.type === 'counter') reset[f.label] = 0;
       if (f.type === 'checkbox') reset[f.label] = false;
       if (f.type === 'text') reset[f.label] = '';
-      if (f.type === 'multiselect') reset[f.label] = [] as string[];
+      if (f.type === 'multiselect') reset[f.label] = '';
     }
     setValues(reset);
     setStatus('Submitted.');
@@ -276,16 +276,13 @@ export default function ScoutPage() {
             {f.type === 'multiselect' && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {(f.options || []).map((opt) => {
-                  const selected: string[] = values[f.label] || [];
-                  const isOn = selected.includes(opt);
+                  const selected: string = values[f.label] || '';
+                  const isOn = selected === opt;
                   return (
                     <button
                       key={opt}
                       type="button"
-                      onClick={() => {
-                        const next = isOn ? selected.filter((x) => x !== opt) : [...selected, opt];
-                        setValue(f.label, next);
-                      }}
+                      onClick={() => setValue(f.label, isOn ? '' : opt)}
                       style={{ padding: '6px 10px', borderRadius: 16, border: '1px solid #ccc', background: isOn ? '#111' : '#fff', color: isOn ? '#fff' : '#111' }}
                     >
                       {opt}
