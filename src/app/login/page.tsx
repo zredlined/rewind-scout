@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
-type Step = 'email' | 'otp' | 'sent';
+type Step = 'email' | 'otp' | 'sent' | 'profile';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,19 +15,42 @@ export default function LoginPage() {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [scoutTeamNumber, setScoutTeamNumber] = useState('');
 
-  // Redirect if already signed in
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (data.user) {
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          email: data.user.email ?? null,
-          full_name: (data.user.user_metadata as Record<string, string>)?.full_name ?? null,
-        });
-        router.replace('/check-in');
-      }
+  async function handlePostAuth() {
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) return;
+
+    // Ensure a profile row exists
+    await supabase.from('profiles').upsert({
+      id: data.user.id,
+      email: data.user.email ?? null,
+      full_name: (data.user.user_metadata as Record<string, string>)?.full_name ?? null,
     });
+
+    // Check if profile is complete (has name + team number)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name,team_number')
+      .eq('id', data.user.id)
+      .maybeSingle();
+
+    const name = (profile as any)?.full_name;
+    const team = (profile as any)?.team_number;
+
+    if (name && team) {
+      router.replace('/check-in');
+    } else {
+      // Pre-fill with whatever we already have
+      if (name) setFullName(name);
+      setStep('profile');
+    }
+  }
+
+  // Redirect if already signed in (or show profile step)
+  useEffect(() => {
+    handlePostAuth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -35,18 +58,11 @@ export default function LoginPage() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_IN') {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await supabase.from('profiles').upsert({
-            id: user.id,
-            email: user.email ?? null,
-            full_name: (user.user_metadata as Record<string, string>)?.full_name ?? null,
-          });
-          router.replace('/check-in');
-        }
+        await handlePostAuth();
       }
     });
     return () => { subscription.unsubscribe(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   async function handleSendLink(e: React.FormEvent) {
@@ -65,6 +81,22 @@ export default function LoginPage() {
     } else {
       setStep('sent');
     }
+  }
+
+  async function handleSaveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    const { data } = await supabase.auth.getUser();
+    if (!data.user) { setError('Not signed in'); setLoading(false); return; }
+    const { error: err } = await supabase.from('profiles').upsert({
+      id: data.user.id,
+      full_name: fullName.trim(),
+      team_number: parseInt(scoutTeamNumber, 10),
+    } as any);
+    setLoading(false);
+    if (err) { setError(err.message); return; }
+    router.replace('/check-in');
   }
 
   async function handleVerifyOtp(e: React.FormEvent) {
@@ -114,6 +146,48 @@ export default function LoginPage() {
               className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
               {loading ? 'Sending...' : 'Send me a sign-in link'}
+            </button>
+          </form>
+        )}
+
+        {step === 'profile' && (
+          <form onSubmit={handleSaveProfile} className="space-y-4">
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-center dark:border-blue-900 dark:bg-blue-950">
+              <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                One more thing — tell us who you are!
+              </p>
+            </div>
+            <label className="block">
+              <span className="text-sm font-medium">Your name</span>
+              <input
+                type="text"
+                required
+                autoFocus
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Jane Smith"
+                className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+              />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium">Your FRC team number</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                required
+                value={scoutTeamNumber}
+                onChange={(e) => setScoutTeamNumber(e.target.value.replace(/\D/g, ''))}
+                placeholder="2767"
+                className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+              />
+            </label>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading || !fullName.trim() || !scoutTeamNumber}
+              className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? 'Saving...' : 'Continue'}
             </button>
           </form>
         )}
