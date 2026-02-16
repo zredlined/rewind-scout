@@ -2,15 +2,19 @@
 
 export const dynamic = 'force-dynamic';
 
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
+type Step = 'email' | 'otp' | 'sent';
+
 export default function LoginPage() {
   const router = useRouter();
-  const [displayName, setDisplayName] = useState('');
+  const [step, setStep] = useState<Step>('email');
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   // Redirect if already signed in
   useEffect(() => {
@@ -19,7 +23,7 @@ export default function LoginPage() {
         await supabase.from('profiles').upsert({
           id: data.user.id,
           email: data.user.email ?? null,
-          full_name: (data.user.user_metadata as any)?.full_name ?? (displayName || null),
+          full_name: (data.user.user_metadata as Record<string, string>)?.full_name ?? null,
         });
         router.replace('/check-in');
       }
@@ -27,6 +31,7 @@ export default function LoginPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Listen for sign-in from magic link (opened in same browser)
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_IN') {
@@ -35,37 +40,137 @@ export default function LoginPage() {
           await supabase.from('profiles').upsert({
             id: user.id,
             email: user.email ?? null,
-            full_name: (user.user_metadata as any)?.full_name ?? (displayName || null),
+            full_name: (user.user_metadata as Record<string, string>)?.full_name ?? null,
           });
           router.replace('/check-in');
         }
       }
     });
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [router, displayName]);
+    return () => { subscription.unsubscribe(); };
+  }, [router]);
+
+  async function handleSendLink(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    const { error: err } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : '',
+      },
+    });
+    setLoading(false);
+    if (err) {
+      setError(err.message);
+    } else {
+      setStep('sent');
+    }
+  }
+
+  async function handleVerifyOtp(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    const { error: err } = await supabase.auth.verifyOtp({
+      email,
+      token: otp,
+      type: 'email',
+    });
+    setLoading(false);
+    if (err) {
+      setError(err.message);
+    }
+    // onAuthStateChange will handle redirect on success
+  }
 
   return (
-    <div style={{ maxWidth: 420, margin: '2rem auto', display: 'grid', gap: 12 }}>
-      <label style={{ display: 'grid', gap: 6 }}>
-        <span>Display name (optional if using email/password)</span>
-        <input
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          placeholder="Your name"
-          style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
-        />
-      </label>
-      <Auth
-        supabaseClient={supabase}
-        appearance={{ theme: ThemeSupa }}
-        redirectTo={typeof window !== 'undefined' ? window.location.origin : ''}
-        providers={['google']}
-        magicLink
-      />
+    <div className="flex min-h-[80vh] items-center justify-center px-4">
+      <div className="w-full max-w-sm space-y-6">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">FRC Scouting</h1>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            Sign in with your email — no password needed
+          </p>
+        </div>
+
+        {step === 'email' && (
+          <form onSubmit={handleSendLink} className="space-y-4">
+            <label className="block">
+              <span className="text-sm font-medium">Email address</span>
+              <input
+                type="email"
+                required
+                autoFocus
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@school.edu"
+                className="mt-1 block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+              />
+            </label>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? 'Sending...' : 'Send me a sign-in link'}
+            </button>
+          </form>
+        )}
+
+        {step === 'sent' && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-green-200 bg-green-50 p-4 text-center dark:border-green-900 dark:bg-green-950">
+              <p className="text-sm font-medium text-green-800 dark:text-green-200">
+                Check your email!
+              </p>
+              <p className="mt-1 text-sm text-green-700 dark:text-green-300">
+                We sent a sign-in link to <strong>{email}</strong>
+              </p>
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-zinc-200 dark:border-zinc-700" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white px-2 text-zinc-500 dark:bg-[#0a0a0a] dark:text-zinc-400">
+                  or enter the 6-digit code from the email
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                required
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                placeholder="000000"
+                className="block w-full rounded-lg border border-zinc-300 px-3 py-2 text-center text-lg tracking-widest focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
+              />
+              {error && <p className="text-sm text-red-600">{error}</p>}
+              <button
+                type="submit"
+                disabled={loading || otp.length !== 6}
+                className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? 'Verifying...' : 'Verify code'}
+              </button>
+            </form>
+
+            <button
+              onClick={() => { setStep('email'); setError(''); setOtp(''); }}
+              className="w-full text-center text-sm text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+            >
+              Use a different email
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-
-
