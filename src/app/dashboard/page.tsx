@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase';
 
 export default function Dashboard() {
   const [email, setEmail] = useState<string | null>(null);
-  const [season, setSeason] = useState<string>('2025');
+  const [season, setSeason] = useState<string>('2026');
   const [eventCode, setEventCode] = useState<string>('');
   const [status, setStatus] = useState<string>('');
 
@@ -41,7 +41,7 @@ export default function Dashboard() {
 
   async function importMatches() {
     if (!eventCode) {
-      setStatus('Enter an event code (e.g., 2025miket)');
+      setStatus('Enter an event code (e.g., 2026miket)');
       return;
     }
     setStatus(`Importing matches for ${eventCode}...`);
@@ -77,7 +77,7 @@ export default function Dashboard() {
           <input
             value={season}
             onChange={(e) => setSeason(e.target.value)}
-            placeholder="2025"
+            placeholder="2026"
             style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
           />
         </label>
@@ -86,11 +86,11 @@ export default function Dashboard() {
         </button>
 
         <label style={{ display: 'grid', gap: 6 }}>
-          <span>Event code (e.g., 2025miket)</span>
+          <span>Event code (e.g., 2026miket)</span>
           <input
             value={eventCode}
             onChange={(e) => setEventCode(e.target.value)}
-            placeholder="2025miket"
+            placeholder="2026miket"
             style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
           />
         </label>

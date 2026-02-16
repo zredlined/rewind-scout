@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   if (supabaseAdmin) {
     // Map minimal fields
     const rows = events.map((e: any) => ({
-      code: e.key, // e.g., 2025miket
+      code: e.key, // e.g., 2026miket
       name: e.name,
       start_date: e.start_date ?? null,
       end_date: e.end_date ?? null,
