@@ -331,39 +331,43 @@ export default function ScoutPage() {
               );
             })()
           ) : (
-            <div key={f.id} style={{ display: 'grid', gap: 8 }}>
-              <label>{f.label}</label>
-              {f.type === 'checkbox' && (
-                <input type="checkbox" checked={!!values[f.label]} onChange={(e) => setValue(f.label, e.target.checked)} />
-              )}
-              {f.type === 'text' && (
-                <textarea
-                  value={typeof values[f.label] === 'string' ? values[f.label] : ''}
-                  onChange={(e) => setValue(f.label, e.target.value)}
-                  rows={3}
-                  style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
-                />
-              )}
-              {f.type === 'multiselect' && (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {(f.options || []).map((opt) => {
-                    const rawSelected = values[f.label];
-                    const selected = typeof rawSelected === 'string' ? rawSelected : '';
-                    const isOn = selected === opt;
-                    return (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => setValue(f.label, isOn ? '' : opt)}
-                        style={{ padding: '6px 10px', borderRadius: 16, border: '1px solid #ccc', background: isOn ? '#111' : '#fff', color: isOn ? '#fff' : '#111' }}
-                      >
-                        {opt}
-                      </button>
-                    );
-                  })}
+            (() => {
+              const rawValue = values[f.label];
+              const textValue = typeof rawValue === 'string' ? rawValue : '';
+              return (
+                <div key={f.id} style={{ display: 'grid', gap: 8 }}>
+                  <label>{f.label}</label>
+                  {f.type === 'checkbox' && (
+                    <input type="checkbox" checked={!!values[f.label]} onChange={(e) => setValue(f.label, e.target.checked)} />
+                  )}
+                  {f.type === 'text' && (
+                    <textarea
+                      value={textValue}
+                      onChange={(e) => setValue(f.label, e.target.value)}
+                      rows={3}
+                      style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
+                    />
+                  )}
+                  {f.type === 'multiselect' && (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {(f.options || []).map((opt) => {
+                        const isOn = textValue === opt;
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => setValue(f.label, isOn ? '' : opt)}
+                            style={{ padding: '6px 10px', borderRadius: 16, border: '1px solid #ccc', background: isOn ? '#111' : '#fff', color: isOn ? '#fff' : '#111' }}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              );
+            })()
           )
         ))}
       </div>
