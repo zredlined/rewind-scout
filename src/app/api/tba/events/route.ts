@@ -1,6 +1,13 @@
 import { NextRequest } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+type TbaEvent = {
+  key: string;
+  name: string;
+  start_date?: string | null;
+  end_date?: string | null;
+};
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const season = searchParams.get("season");
@@ -23,12 +30,12 @@ export async function GET(req: NextRequest) {
     return new Response(JSON.stringify({ error: "TBA error", details: text }), { status: 502 });
   }
 
-  const events = await res.json();
+  const events: TbaEvent[] = await res.json();
 
   // Upsert into Supabase if admin client is available
   if (supabaseAdmin) {
     // Map minimal fields
-    const rows = events.map((e: any) => ({
+    const rows = events.map((e) => ({
       code: e.key, // e.g., 2026miket
       name: e.name,
       start_date: e.start_date ?? null,
@@ -50,5 +57,4 @@ export async function GET(req: NextRequest) {
 
   return new Response(JSON.stringify({ count: events.length }), { status: 200 });
 }
-
 

@@ -1,6 +1,16 @@
 import { NextRequest } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+type EventRow = { id: string };
+type TbaMatch = {
+  key: string;
+  time?: number | null;
+  alliances?: {
+    red?: { team_keys?: string[] | null } | null;
+    blue?: { team_keys?: string[] | null } | null;
+  } | null;
+};
+
 function frcKeyToNum(key: string): number | null {
   // key like "frc2767"
   const m = key.match(/frc(\d+)/);
@@ -26,7 +36,7 @@ export async function POST(
     .upsert({ code, name: code }, { onConflict: "code" })
     .select()
     .eq("code", code)
-    .single();
+    .single<EventRow>();
   if (evErr) {
     return new Response(JSON.stringify({ error: evErr.message }), { status: 500 });
   }
@@ -39,9 +49,9 @@ export async function POST(
     const text = await res.text();
     return new Response(JSON.stringify({ error: "TBA error", details: text }), { status: 502 });
   }
-  const matches = await res.json();
+  const matches: TbaMatch[] = await res.json();
 
-  const rows = matches.map((m: any) => {
+  const rows = matches.map((m) => {
     const redTeams = (m?.alliances?.red?.team_keys ?? []).map(frcKeyToNum).filter(Boolean) as number[];
     const blueTeams = (m?.alliances?.blue?.team_keys ?? []).map(frcKeyToNum).filter(Boolean) as number[];
     return {
@@ -63,5 +73,4 @@ export async function POST(
 
   return new Response(JSON.stringify({ imported: rows.length }), { status: 200 });
 }
-
 

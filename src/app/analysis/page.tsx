@@ -7,17 +7,40 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis, ResponsiveContainer, Legend } from 'recharts';
 
+type MetricValue = string | number | boolean | string[] | null | undefined;
 type Entry = {
   id: string;
   event_code: string;
   match_key: string;
   team_number: number;
   season: number;
-  metrics: Record<string, any>;
+  metrics: Record<string, MetricValue>;
   scout_name?: string | null;
   created_at?: string;
   scouted_at?: string | null;
 };
+type TeamInfoRow = { number: number; nickname: string | null; name: string | null; logo_url: string | null };
+type EventNameRow = { code: string; name: string };
+type FormField = { id: string; label: string; type: string; options?: string[] };
+type FormTemplateRow = { form_definition: FormField[] | null };
+type PitEntry = {
+  team_number: number;
+  metrics: Record<string, MetricValue>;
+  photos?: string[];
+  created_at?: string;
+  scouted_at?: string;
+  season?: number;
+  event_code?: string;
+};
+
+function getStoredCurrentEventCode(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem('currentEventCode');
+  } catch {
+    return null;
+  }
+}
 
 export default function AnalysisPage() {
   const router = useRouter();
@@ -31,26 +54,22 @@ export default function AnalysisPage() {
   const [textKeys, setTextKeys] = useState<string[]>([]);
   const [multiKeys, setMultiKeys] = useState<string[]>([]);
   // Pit scouting
-  const [pitRows, setPitRows] = useState<Array<{ team_number: number; metrics: any; photos?: string[]; created_at?: string; scouted_at?: string; season?: number; event_code?: string }>>([]);
-  const [pitTemplate, setPitTemplate] = useState<Array<{ id: string; label: string; type: string; options?: string[] }>>([]);
+  const [pitRows, setPitRows] = useState<PitEntry[]>([]);
+  const [pitTemplate, setPitTemplate] = useState<FormField[]>([]);
 
   async function load() {
     setStatus('Loading...');
     let q = supabase.from('scouting_entries').select('id,event_code,match_key,team_number,season,metrics,scout_name,created_at,scouted_at');
     if (teamNumber) q = q.eq('team_number', parseInt(teamNumber, 10));
     if (scope === 'event') {
-      try {
-        const ce = localStorage.getItem('currentEventCode');
-        if (ce) q = q.eq('event_code', ce);
-      } catch {}
+      const ce = getStoredCurrentEventCode();
+      if (ce) q = q.eq('event_code', ce);
     } else {
       // scope = season
       // If current event exists, derive its season; else use current year
       let seasonYear = new Date().getFullYear();
-      try {
-        const ce = localStorage.getItem('currentEventCode');
-        if (ce && /^\d{4}/.test(ce)) seasonYear = parseInt(ce.slice(0,4), 10);
-      } catch {}
+      const ce = getStoredCurrentEventCode();
+      if (ce && /^\d{4}/.test(ce)) seasonYear = parseInt(ce.slice(0,4), 10);
       q = q.eq('season', seasonYear);
     }
     // Sort newest first by scouted_at then created_at
@@ -59,7 +78,7 @@ export default function AnalysisPage() {
       .order('created_at', { ascending: false });
     if (error) setStatus(`Error: ${error.message}`);
     else {
-      const entries = (data as any[]) as Entry[];
+      const entries = (data as Entry[] | null) || [];
       setRows(entries);
       // Load human-readable event names for the codes present in results
       try {
@@ -67,7 +86,7 @@ export default function AnalysisPage() {
         if (codes.length > 0) {
           const { data: evs } = await supabase.from('events').select('code,name').in('code', codes);
           const map: Record<string, string> = {};
-          for (const e of (evs as any[]) || []) map[e.code] = e.name;
+          for (const e of (evs as EventNameRow[] | null) || []) map[e.code] = e.name;
           setEventNames(map);
         } else {
           setEventNames({});
@@ -76,8 +95,8 @@ export default function AnalysisPage() {
         const teamNums = Array.from(new Set(entries.map((r) => r.team_number).filter(Boolean)));
         if (teamNums.length > 0) {
           const { data: teams } = await supabase.from('frc_teams').select('number,nickname,name,logo_url').in('number', teamNums);
-          const tmap: any = {};
-          (teams as any[] || []).forEach((t) => { tmap[t.number] = { nickname: t.nickname, name: t.name, logo_url: t.logo_url }; });
+          const tmap: Record<number, { nickname?: string; name?: string; logo_url?: string }> = {};
+          ((teams as TeamInfoRow[] | null) || []).forEach((t) => { tmap[t.number] = { nickname: t.nickname || undefined, name: t.name || undefined, logo_url: t.logo_url || undefined }; });
           setTeamInfo(tmap);
         } else {
           setTeamInfo({});
@@ -88,7 +107,7 @@ export default function AnalysisPage() {
           const first = entries[0];
           if (first?.season) seasonYear = first.season;
           else {
-            const ce = (typeof window !== 'undefined') ? localStorage.getItem('currentEventCode') : null;
+            const ce = getStoredCurrentEventCode();
             if (ce && /^\d{4}/.test(ce)) seasonYear = parseInt(ce.slice(0,4), 10);
           }
         } else {
@@ -100,11 +119,11 @@ export default function AnalysisPage() {
           .from('form_templates')
           .select('form_definition')
           .eq('season', seasonYear)
-          .maybeSingle();
-        const def = (tpl?.form_definition as any[]) || [];
+          .maybeSingle<FormTemplateRow>();
+        const def = tpl?.form_definition || [];
         const tKeys: string[] = [];
         const mKeys: string[] = [];
-        def.forEach((f: any) => {
+        def.forEach((f) => {
           if (f?.type === 'text') tKeys.push(String(f.label));
           if (f?.type === 'multiselect') mKeys.push(String(f.label));
         });
@@ -114,20 +133,21 @@ export default function AnalysisPage() {
         // Load pit entries (same scope filters)
         let pq = supabase.from('pit_entries').select('team_number,metrics,photos,created_at,season,event_code');
         if (scope === 'event') {
-          try { const ce = localStorage.getItem('currentEventCode'); if (ce) pq = pq.eq('event_code', ce); } catch {}
+          const ce = getStoredCurrentEventCode();
+          if (ce) pq = pq.eq('event_code', ce);
         } else {
           pq = pq.eq('season', seasonYear);
         }
         const { data: pRows } = await pq.order('created_at', { ascending: false });
-        setPitRows((pRows as any[]) || []);
+        setPitRows((pRows as PitEntry[] | null) || []);
 
         // Load pit template for the same season
         const { data: ptpl } = await supabase
           .from('pit_templates')
           .select('form_definition')
           .eq('season', seasonYear)
-          .maybeSingle();
-        setPitTemplate(((ptpl?.form_definition as any[]) || []));
+          .maybeSingle<FormTemplateRow>();
+        setPitTemplate(ptpl?.form_definition || []);
       } catch {}
       setStatus('');
     }
@@ -164,7 +184,7 @@ export default function AnalysisPage() {
     for (const r of rows) {
       const m = r.metrics || {};
       for (const key of set) {
-        const v: any = (m as any)[key];
+        const v = m[key];
         if ((Array.isArray(v) && v.length) || (typeof v === 'string' && v.trim().length)) available.add(key);
       }
     }
@@ -188,7 +208,7 @@ export default function AnalysisPage() {
     if (!tnum) return false;
     for (const r of rows) {
       if (r.team_number === tnum) {
-        const raw = (r.metrics as any)?.[metric];
+        const raw = r.metrics?.[metric];
         const v = Number(raw);
         if (!Number.isNaN(v) && v > 0) return true;
       }
@@ -290,7 +310,7 @@ export default function AnalysisPage() {
               // collect all option values seen for this metric
               const optionSet = new Set<string>();
               rows.forEach((r) => {
-                const v: any = (r.metrics as any)?.[metric];
+                const v = r.metrics?.[metric];
                 if (Array.isArray(v)) v.forEach((x) => optionSet.add(String(x)));
                 else if (typeof v === 'string' && v) optionSet.add(v);
               });
@@ -302,7 +322,7 @@ export default function AnalysisPage() {
                 let othersCount = 0;
                 rows.forEach((r) => {
                   const isTeam = teamNumber ? r.team_number === teamNum : false;
-                  const v: any = (r.metrics as any)?.[metric];
+                  const v = r.metrics?.[metric];
                   const has = Array.isArray(v) ? v.includes(opt) : v === opt;
                   if (has) {
                     if (isTeam) teamCount += 1; else othersCount += 1;
@@ -341,7 +361,7 @@ export default function AnalysisPage() {
           {textKeys.map((key) => {
             const teamRows = rows.filter((r) => r.team_number === Number(teamNumber));
             const notes = teamRows
-              .map((r) => ({ t: formatTime(r.scouted_at ?? r.created_at), c: String((r.metrics as any)?.[key] ?? '') }))
+              .map((r) => ({ t: formatTime(r.scouted_at ?? r.created_at), c: String(r.metrics?.[key] ?? '') }))
               .filter((x) => x.c && x.c.trim().length > 0)
               .slice(0, 5);
             if (notes.length === 0) return null;
@@ -371,7 +391,7 @@ export default function AnalysisPage() {
             const teamPit = pitRows.filter(r => r.team_number === tnum);
             if (!teamPit.length) return <div style={{ color: '#666' }}>No pit entry.</div>;
             const entry = teamPit[0];
-            const photos: string[] = (entry.photos as any) || [];
+            const photos: string[] = entry.photos || [];
             return (
               <div style={{ display: 'grid', gap: 10 }}>
                 {photos.length > 0 && (
@@ -384,7 +404,7 @@ export default function AnalysisPage() {
                 )}
                 <div style={{ display: 'grid', gap: 6 }}>
                   {pitTemplate.map((f) => {
-                    const val = (entry.metrics as any)?.[f.label];
+                    const val = entry.metrics?.[f.label];
                     if (val === undefined || val === '' || (Array.isArray(val) && val.length === 0)) return null;
                     return (
                       <div key={f.id} style={{ display: 'flex', gap: 8 }}>
@@ -443,5 +463,4 @@ export default function AnalysisPage() {
     </div>
   );
 }
-
 

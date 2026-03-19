@@ -2,16 +2,42 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
+type MetricValue = string | number | boolean;
 type Entry = {
   team_number: number;
-  metrics: Record<string, any>;
+  metrics: Record<string, MetricValue>;
   event_code: string;
   season: number;
 };
+type TeamInfoRow = {
+  number: number;
+  nickname: string | null;
+  name: string | null;
+  logo_url: string | null;
+};
+type FormField = {
+  id: string;
+  label: string;
+  type: 'counter' | 'checkbox' | 'text' | 'multiselect';
+  options?: string[];
+};
+type FormTemplateRow = {
+  form_definition: FormField[] | null;
+};
+type CellStyle = React.CSSProperties;
+
+function getStoredCurrentEventCode(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem('currentEventCode');
+  } catch {
+    return null;
+  }
+}
 
 export default function LeaderboardPage() {
   const router = useRouter();
@@ -28,33 +54,29 @@ export default function LeaderboardPage() {
     });
   }, [router]);
 
-  async function load() {
+  const load = useCallback(async () => {
     setStatus('Loading...');
     let q = supabase.from('scouting_entries').select('team_number,metrics,event_code,season');
     if (scope === 'event') {
-      try {
-        const ce = localStorage.getItem('currentEventCode');
-        if (ce) q = q.eq('event_code', ce);
-      } catch {}
+      const ce = getStoredCurrentEventCode();
+      if (ce) q = q.eq('event_code', ce);
     } else {
       let seasonYear = new Date().getFullYear();
-      try {
-        const ce = localStorage.getItem('currentEventCode');
-        if (ce && /^\d{4}/.test(ce)) seasonYear = parseInt(ce.slice(0,4), 10);
-      } catch {}
+      const ce = getStoredCurrentEventCode();
+      if (ce && /^\d{4}/.test(ce)) seasonYear = parseInt(ce.slice(0,4), 10);
       q = q.eq('season', seasonYear);
     }
     const { data, error } = await q;
     if (error) { setStatus(`Error: ${error.message}`); return; }
-    const entries = (data as any[]) as Entry[];
+    const entries = (data as Entry[] | null) || [];
     setRows(entries);
     // load team names/logos for the teams present
     try {
       const teamNums = Array.from(new Set(entries.map((r) => r.team_number).filter(Boolean)));
       if (teamNums.length > 0) {
         const { data: teams } = await supabase.from('frc_teams').select('number,nickname,name,logo_url').in('number', teamNums);
-        const tmap: any = {};
-        (teams as any[] || []).forEach((t) => { tmap[t.number] = { nickname: t.nickname, name: t.name, logo_url: t.logo_url }; });
+        const tmap: Record<number, { nickname?: string; name?: string; logo_url?: string }> = {};
+        ((teams as TeamInfoRow[] | null) || []).forEach((t) => { tmap[t.number] = { nickname: t.nickname || undefined, name: t.name || undefined, logo_url: t.logo_url || undefined }; });
         setTeamInfo(tmap);
       } else {
         setTeamInfo({});
@@ -64,25 +86,30 @@ export default function LeaderboardPage() {
     try {
       let seasonYear = new Date().getFullYear();
       if (scope === 'event') {
-        const ce = (typeof window !== 'undefined') ? localStorage.getItem('currentEventCode') : null;
+        const ce = getStoredCurrentEventCode();
         if (ce && /^\d{4}/.test(ce)) seasonYear = parseInt(ce.slice(0,4), 10);
       } else {
         const first = entries[0];
         if (first?.season) seasonYear = first.season;
       }
-      const { data: tpl } = await supabase
-        .from('form_templates')
-        .select('form_definition')
-        .eq('season', seasonYear)
-        .maybeSingle();
-      const def = (tpl?.form_definition as any[]) || [];
-      const counters = def.filter((f: any) => f?.type === 'counter').map((f: any) => String(f.label));
-      setCounterKeys(counters);
-    } catch {}
+        const { data: tpl } = await supabase
+          .from('form_templates')
+          .select('form_definition')
+          .eq('season', seasonYear)
+          .maybeSingle<FormTemplateRow>();
+        const def = tpl?.form_definition || [];
+        const counters = def.filter((f) => f?.type === 'counter').map((f) => String(f.label));
+        setCounterKeys(counters);
+      } catch {}
     setStatus('');
-  }
+  }, [scope]);
 
-  useEffect(() => { load(); }, [scope]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [load]);
 
   const numericMetrics = useMemo(() => {
     const set = new Set<string>();
@@ -106,7 +133,7 @@ export default function LeaderboardPage() {
       const rec = byTeam.get(r.team_number) || { count: 0, sums: {} };
       rec.count += 1;
       for (const key of numericMetrics) {
-        const val = Number((m as any)[key]);
+        const val = Number(m[key]);
         if (!Number.isNaN(val)) rec.sums[key] = (rec.sums[key] || 0) + val;
       }
       byTeam.set(r.team_number, rec);
@@ -199,11 +226,11 @@ export default function LeaderboardPage() {
                   // Heat map only for counter fields
                   const isCounter = counterKeys.includes(k);
                   const max = metricMax[k] || 0;
-                  let style: any = { borderBottom: '1px solid #f0f0f0', padding: 6 };
+                  let style: CellStyle = { borderBottom: '1px solid #f0f0f0', padding: 6 };
                   if (isCounter && max > 0 && val > 0) {
                     const intensity = Math.max(0, Math.min(1, val / max));
                     const alpha = 0.15 + 0.35 * intensity; // 0.15..0.5
-                    style = { ...style, backgroundColor: `rgba(16,185,129,${alpha})`, fontWeight: val === max ? 700 as any : 400 };
+                    style = { ...style, backgroundColor: `rgba(16,185,129,${alpha})`, fontWeight: val === max ? 700 : 400 };
                   }
                   return (
                     <td key={k} style={style}>{val}</td>
@@ -217,5 +244,3 @@ export default function LeaderboardPage() {
     </div>
   );
 }
-
-

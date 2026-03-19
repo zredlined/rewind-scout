@@ -14,6 +14,9 @@ type FormField = {
   type: FieldType;
   options?: string[]; // for multiselect
 };
+type PitTemplateRow = {
+  form_definition: FormField[] | null;
+};
 
 export default function PitFormBuilderPage() {
   const defaultSeason = new Date().getFullYear();
@@ -33,10 +36,10 @@ export default function PitFormBuilderPage() {
         .from('pit_templates')
         .select('form_definition')
         .eq('season', season)
-        .maybeSingle();
+        .maybeSingle<PitTemplateRow>();
       if (error) setStatus(`Error: ${error.message}`);
       else {
-        const def = (data?.form_definition as any) ?? [];
+        const def = data?.form_definition ?? [];
         setFields(Array.isArray(def) ? def : []);
         setStatus(data ? 'Loaded.' : 'No template yet for this season.');
       }
@@ -121,5 +124,4 @@ export default function PitFormBuilderPage() {
     </div>
   );
 }
-
 

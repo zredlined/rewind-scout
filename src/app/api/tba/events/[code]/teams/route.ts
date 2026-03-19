@@ -2,6 +2,22 @@ export const runtime = 'nodejs';
 import { NextRequest } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+type TbaMedia = {
+  type?: string;
+  preferred?: boolean;
+  direct_url?: string | null;
+  view_url?: string | null;
+  details?: {
+    base64Image?: string | null;
+  } | null;
+};
+
+type TbaTeam = {
+  team_number: number;
+  nickname?: string | null;
+  name?: string | null;
+};
+
 async function resolveTeamLogo(teamNumber: number, season: number, tbaKey: string): Promise<string | null> {
   const headers = { 'X-TBA-Auth-Key': tbaKey };
   // Try seasonal media first
@@ -9,7 +25,7 @@ async function resolveTeamLogo(teamNumber: number, season: number, tbaKey: strin
     `https://www.thebluealliance.com/api/v3/team/frc${teamNumber}/media/${season}`,
     { headers, cache: 'no-store' }
   );
-  let media = seasonal.ok ? await seasonal.json() : null;
+  let media: TbaMedia[] | null = seasonal.ok ? await seasonal.json() : null;
 
   // Fallback to any-year media
   if (!media || !Array.isArray(media) || media.length === 0) {
@@ -22,7 +38,7 @@ async function resolveTeamLogo(teamNumber: number, season: number, tbaKey: strin
   if (!Array.isArray(media) || media.length === 0) return null;
 
   // Prefer avatar; use base64 if provided
-  const avatar = media.find((m: any) => m?.type === 'avatar');
+  const avatar = media.find((m) => m?.type === 'avatar');
   if (avatar) {
     const base64 = avatar?.details?.base64Image;
     if (typeof base64 === 'string' && base64.length > 0) {
@@ -33,12 +49,12 @@ async function resolveTeamLogo(teamNumber: number, season: number, tbaKey: strin
   }
 
   // Then other images with direct_url/view_url
-  const images = media.filter((m: any) => m?.type === 'team_image' || m?.type === 'imgur' || m?.direct_url || m?.view_url);
-  const preferredImg = images.find((m: any) => m?.preferred && (m?.direct_url || m?.view_url));
+  const images = media.filter((m) => m?.type === 'team_image' || m?.type === 'imgur' || m?.direct_url || m?.view_url);
+  const preferredImg = images.find((m) => m?.preferred && (m?.direct_url || m?.view_url));
   if (preferredImg?.direct_url) return preferredImg.direct_url as string;
   if (preferredImg?.view_url) return preferredImg.view_url as string;
 
-  const anyImg = images.find((m: any) => m?.direct_url || m?.view_url);
+  const anyImg = images.find((m) => m?.direct_url || m?.view_url);
   if (anyImg?.direct_url) return anyImg.direct_url as string;
   if (anyImg?.view_url) return anyImg.view_url as string;
 
@@ -64,9 +80,9 @@ export async function POST(
     const text = await teamsRes.text();
     return new Response(JSON.stringify({ error: "TBA teams error", details: text }), { status: 502 });
   }
-  const teams = await teamsRes.json();
+  const teams: TbaTeam[] = await teamsRes.json();
 
-  const baseRows = teams.map((t: any) => ({
+  const baseRows = teams.map((t) => ({
     number: t.team_number,
     nickname: t.nickname ?? null,
     name: t.name ?? null,
@@ -93,5 +109,4 @@ export async function POST(
 
   return new Response(JSON.stringify({ upserted: baseRows.length, withLogos }), { status: 200 });
 }
-
 

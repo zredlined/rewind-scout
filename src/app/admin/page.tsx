@@ -5,6 +5,17 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
+type EntryIdRow = { id: string };
+type ExportRow = {
+  season: number;
+  event_code: string;
+  match_key: string;
+  team_number: number;
+  scout_id: string | null;
+  metrics: Record<string, unknown> | null;
+  created_at: string | null;
+};
+
 export default function AdminPage() {
   const [status, setStatus] = useState<string>('');
 
@@ -24,7 +35,7 @@ export default function AdminPage() {
       .select('id')
       .gte('created_at', since.toISOString());
     if (error) { setStatus(`Error: ${error.message}`); return; }
-    const ids = (data as any[]).map((r) => r.id);
+    const ids = ((data as EntryIdRow[] | null) || []).map((r) => r.id);
     if (ids.length === 0) { setStatus('No entries to delete.'); return; }
     const { error: delErr } = await supabase.from('scouting_entries').delete().in('id', ids);
     setStatus(delErr ? `Error: ${delErr.message}` : `Deleted ${ids.length} entries.`);
@@ -47,7 +58,7 @@ export default function AdminPage() {
       .from('scouting_entries')
       .select('season,event_code,match_key,team_number,scout_id,metrics,created_at');
     if (error) { setStatus(`Error: ${error.message}`); return; }
-    const rows = (data as any[]) || [];
+    const rows = (data as ExportRow[] | null) || [];
     const header = ['season','event_code','match_key','team_number','scout_id','created_at','metrics_json'];
     const csv = [header.join(',')].concat(rows.map((r) => {
       const metrics = JSON.stringify(r.metrics || {}).replaceAll('"', '""');
@@ -75,5 +86,4 @@ export default function AdminPage() {
     </div>
   );
 }
-
 

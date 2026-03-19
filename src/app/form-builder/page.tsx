@@ -14,6 +14,9 @@ type FormField = {
   type: FieldType;
   options?: string[]; // for multiselect
 };
+type FormTemplateRow = {
+  form_definition: FormField[] | null;
+};
 
 export default function FormBuilderPage() {
   const defaultSeason = new Date().getFullYear();
@@ -36,17 +39,17 @@ export default function FormBuilderPage() {
         .from('form_templates')
         .select('form_definition')
         .eq('season', season)
-        .maybeSingle();
+        .maybeSingle<FormTemplateRow>();
       if (error) {
         setStatus(`Error: ${error.message}`);
       } else {
-        const def = (data?.form_definition as any) ?? [];
+        const def = data?.form_definition ?? [];
         setFields(Array.isArray(def) ? def : []);
         setStatus(data ? 'Loaded.' : 'No template yet for this season.');
       }
     }
     load();
-  }, [season]);
+  }, [router, season]);
 
   function addField() {
     if (!newLabel.trim()) return;
@@ -161,5 +164,4 @@ export default function FormBuilderPage() {
     </div>
   );
 }
-
 

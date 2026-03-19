@@ -6,6 +6,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err);
+}
+
 export default function Dashboard() {
   const [email, setEmail] = useState<string | null>(null);
   const [season, setSeason] = useState<string>('2026');
@@ -34,8 +39,8 @@ export default function Dashboard() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed');
       setStatus(`Imported/updated ${data.count} events for ${season}.`);
-    } catch (e: any) {
-      setStatus(`Error: ${e.message || String(e)}`);
+    } catch (e) {
+      setStatus(`Error: ${errorMessage(e)}`);
     }
   }
 
@@ -52,8 +57,8 @@ export default function Dashboard() {
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed');
       setStatus(`Imported/updated ${data.imported} matches for ${eventCode}.`);
-    } catch (e: any) {
-      setStatus(`Error: ${e.message || String(e)}`);
+    } catch (e) {
+      setStatus(`Error: ${errorMessage(e)}`);
     }
   }
 
@@ -107,5 +112,4 @@ export default function Dashboard() {
     </div>
   );
 }
-
 

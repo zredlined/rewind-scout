@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 type LeaderRow = {
@@ -14,6 +14,25 @@ type LeaderRow = {
   total: number;
 };
 
+type MatchEntryRow = {
+  scout_id: string | null;
+  scout_name: string | null;
+  event_code: string;
+  season: number;
+};
+
+type PitEntryRow = {
+  scout_id: string | null;
+  event_code: string;
+  season: number;
+};
+
+type ProfileRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+};
+
 export default function MePage() {
   const [meEmail, setMeEmail] = useState<string>('');
   const [meId, setMeId] = useState<string>('');
@@ -21,12 +40,14 @@ export default function MePage() {
   const [rows, setRows] = useState<LeaderRow[]>([]);
   const [status, setStatus] = useState<string>('');
 
-  async function load() {
+  const load = useCallback(async () => {
     setStatus('Loading...');
     const { data: auth } = await supabase.auth.getUser();
     if (!auth.user) { window.location.href = '/login'; return; }
-    setMeEmail(auth.user.email || '');
-    setMeId(auth.user.id);
+    const currentUserEmail = auth.user.email || '';
+    const currentUserId = auth.user.id;
+    setMeEmail(currentUserEmail);
+    setMeId(currentUserId);
 
     // Determine filters
     let ce: string | null = null;
@@ -50,22 +71,22 @@ export default function MePage() {
     // Aggregate counts per scout and build scout_name fallback map
     const matchCounts = new Map<string, number>();
     const scoutNameMap = new Map<string, string>();
-    (mrows as any[] || []).forEach(r => {
+    ((mrows as MatchEntryRow[] | null) || []).forEach(r => {
       if (!r.scout_id) return;
       matchCounts.set(r.scout_id, (matchCounts.get(r.scout_id) || 0) + 1);
       if (r.scout_name && !scoutNameMap.has(r.scout_id)) scoutNameMap.set(r.scout_id, r.scout_name);
     });
     const pitCounts = new Map<string, number>();
-    (prows as any[] || []).forEach(r => {
+    ((prows as PitEntryRow[] | null) || []).forEach(r => {
       if (!r.scout_id) return; pitCounts.set(r.scout_id, (pitCounts.get(r.scout_id) || 0) + 1);
     });
     const ids = Array.from(new Set([ ...matchCounts.keys(), ...pitCounts.keys() ]));
 
     // Fetch names/emails
-    let people: Record<string, { name: string; email: string }> = {};
+    const people: Record<string, { name: string; email: string }> = {};
     if (ids.length) {
       const { data: profs } = await supabase.from('profiles').select('id,full_name,email').in('id', ids);
-      (profs as any[] || []).forEach(p => {
+      ((profs as ProfileRow[] | null) || []).forEach(p => {
         people[p.id] = { name: p.full_name || p.email || scoutNameMap.get(p.id) || p.id, email: p.email || '' };
       });
       // Backfill scouts that have no profile row but do have a scout_name
@@ -77,8 +98,8 @@ export default function MePage() {
     }
 
     // Ensure current user shows a friendly label even if profile is missing
-    if (meId) {
-      if (!people[meId]) people[meId] = { name: meEmail || meId, email: meEmail || '' };
+    if (currentUserId && !people[currentUserId]) {
+      people[currentUserId] = { name: currentUserEmail || currentUserId, email: currentUserEmail || '' };
     }
 
     const out: LeaderRow[] = ids.map(id => {
@@ -90,9 +111,14 @@ export default function MePage() {
 
     setRows(out);
     setStatus('');
-  }
+  }, [scope]);
 
-  useEffect(() => { load(); }, [scope]);
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [load]);
 
   const meRank = useMemo(() => {
     const idx = rows.findIndex(r => r.scoutId === meId);
@@ -151,5 +177,3 @@ export default function MePage() {
     </div>
   );
 }
-
-
