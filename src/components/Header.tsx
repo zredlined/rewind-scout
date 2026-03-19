@@ -4,13 +4,27 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
+function getStoredCurrentEventCode(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    return localStorage.getItem('currentEventCode') || '';
+  } catch {
+    return '';
+  }
+}
+
 export default function Header() {
   const [email, setEmail] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [currentEventCode, setCurrentEventCode] = useState(getStoredCurrentEventCode);
 
   useEffect(() => {
     let mounted = true;
+    const refreshCurrentEvent = () => {
+      if (!mounted) return;
+      setCurrentEventCode(getStoredCurrentEventCode());
+    };
     supabase.auth.getUser().then(({ data }) => {
       if (!mounted) return;
       setEmail(data.user?.email ?? null);
@@ -18,8 +32,15 @@ export default function Header() {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       setEmail(session?.user?.email ?? null);
     });
+    refreshCurrentEvent();
+    window.addEventListener('storage', refreshCurrentEvent);
+    window.addEventListener('focus', refreshCurrentEvent);
+    window.addEventListener('current-event-changed', refreshCurrentEvent);
     return () => {
       mounted = false;
+      window.removeEventListener('storage', refreshCurrentEvent);
+      window.removeEventListener('focus', refreshCurrentEvent);
+      window.removeEventListener('current-event-changed', refreshCurrentEvent);
       sub.subscription.unsubscribe();
     };
   }, []);
@@ -37,7 +58,7 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-10 border-b bg-white/90 backdrop-blur dark:bg-black/90">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <button className="md:hidden p-2 border rounded" onClick={() => setMobileOpen((v) => !v)} aria-label="Toggle menu">☰</button>
           <Link href="/" className="font-semibold">FRC Scouting</Link>
           <nav className="hidden md:flex items-center gap-3">
@@ -71,6 +92,21 @@ export default function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-3">
+          <div className="hidden lg:flex items-center gap-2 rounded-full border px-3 py-1 text-sm">
+            <span className="text-zinc-500">Event</span>
+            {currentEventCode ? (
+              <>
+                <span className="font-medium">{currentEventCode}</span>
+                <Link href="/check-in" className="text-blue-600 hover:underline">
+                  Switch
+                </Link>
+              </>
+            ) : (
+              <Link href="/check-in" className="font-medium text-amber-700 hover:underline">
+                Check in
+              </Link>
+            )}
+          </div>
           {email ? (
             <>
               <Link href="/me" className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-xs">{initials}</Link>
@@ -79,6 +115,17 @@ export default function Header() {
           ) : (
             <Link href="/login" className="px-3 py-1 rounded border">Login</Link>
           )}
+        </div>
+      </div>
+      <div className="border-t px-4 py-2 lg:hidden">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 text-sm">
+          <div className="min-w-0 truncate">
+            <span className="text-zinc-500">Current event: </span>
+            <span className="font-medium">{currentEventCode || 'Not checked in'}</span>
+          </div>
+          <Link href="/check-in" className="shrink-0 rounded border px-2 py-1">
+            {currentEventCode ? 'Switch' : 'Check in'}
+          </Link>
         </div>
       </div>
       {mobileOpen && (
@@ -98,5 +145,3 @@ export default function Header() {
     </header>
   );
 }
-
-

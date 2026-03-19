@@ -109,6 +109,7 @@ export default function CheckInPage() {
     }
     try {
       localStorage.setItem('currentEventCode', code);
+      window.dispatchEvent(new Event('current-event-changed'));
       setCurrentEventCode(code);
     } catch {}
     // best-effort profile persist if column exists
