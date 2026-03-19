@@ -13,17 +13,28 @@ function getStoredCurrentEventCode(): string {
   }
 }
 
+function getStoredCurrentEventName(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    return localStorage.getItem('currentEventName') || '';
+  } catch {
+    return '';
+  }
+}
+
 export default function Header() {
   const [email, setEmail] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [currentEventCode, setCurrentEventCode] = useState(getStoredCurrentEventCode);
+  const [currentEventName, setCurrentEventName] = useState(getStoredCurrentEventName);
 
   useEffect(() => {
     let mounted = true;
     const refreshCurrentEvent = () => {
       if (!mounted) return;
       setCurrentEventCode(getStoredCurrentEventCode());
+      setCurrentEventName(getStoredCurrentEventName());
     };
     supabase.auth.getUser().then(({ data }) => {
       if (!mounted) return;
@@ -54,6 +65,8 @@ export default function Header() {
     const name = email.split('@')[0];
     return name.slice(0, 2).toUpperCase();
   }, [email]);
+
+  const currentEventLabel = currentEventName || currentEventCode;
 
   return (
     <header className="sticky top-0 z-10 border-b bg-white/90 backdrop-blur dark:bg-black/90">
@@ -94,9 +107,9 @@ export default function Header() {
         <div className="flex items-center gap-3">
           <div className="hidden lg:flex items-center gap-2 rounded-full border px-3 py-1 text-sm">
             <span className="text-zinc-500">Event</span>
-            {currentEventCode ? (
+            {currentEventLabel ? (
               <>
-                <span className="font-medium">{currentEventCode}</span>
+                <span className="max-w-56 truncate font-medium" title={currentEventLabel}>{currentEventLabel}</span>
                 <Link href="/check-in" className="text-blue-600 hover:underline">
                   Switch
                 </Link>
@@ -121,10 +134,10 @@ export default function Header() {
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 text-sm">
           <div className="min-w-0 truncate">
             <span className="text-zinc-500">Current event: </span>
-            <span className="font-medium">{currentEventCode || 'Not checked in'}</span>
+            <span className="font-medium">{currentEventLabel || 'Not checked in'}</span>
           </div>
           <Link href="/check-in" className="shrink-0 rounded border px-2 py-1">
-            {currentEventCode ? 'Switch' : 'Check in'}
+            {currentEventLabel ? 'Switch' : 'Check in'}
           </Link>
         </div>
       </div>

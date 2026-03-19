@@ -18,6 +18,15 @@ function getStoredCurrentEventCode(): string {
   }
 }
 
+function getStoredCurrentEventName(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    return localStorage.getItem('currentEventName') || '';
+  } catch {
+    return '';
+  }
+}
+
 function getInitialSeason(): number {
   const currentYear = new Date().getFullYear();
   const code = getStoredCurrentEventCode();
@@ -53,6 +62,7 @@ export default function CheckInPage() {
   const [search, setSearch] = useState<string>('');
   const [status, setStatus] = useState<string>('');
   const [currentEventCode, setCurrentEventCode] = useState<string>(getStoredCurrentEventCode);
+  const [currentEventName, setCurrentEventName] = useState<string>(getStoredCurrentEventName);
   const router = useRouter();
 
   useEffect(() => {
@@ -86,7 +96,7 @@ export default function CheckInPage() {
     setStatus('');
   }
 
-  async function chooseEvent(code: string) {
+  async function chooseEvent(code: string, name: string) {
     setStatus('Importing matches...');
     const res = await fetch(`/api/tba/events/${encodeURIComponent(code)}/matches`, { method: 'POST' });
     if (!res.ok) {
@@ -109,8 +119,10 @@ export default function CheckInPage() {
     }
     try {
       localStorage.setItem('currentEventCode', code);
+      localStorage.setItem('currentEventName', name);
       window.dispatchEvent(new Event('current-event-changed'));
       setCurrentEventCode(code);
+      setCurrentEventName(name);
     } catch {}
     // best-effort profile persist if column exists
     supabase.auth.getUser().then(async ({ data }) => {
@@ -135,7 +147,7 @@ export default function CheckInPage() {
       <div style={{ marginTop: 12, border: '1px solid #dbe7ff', background: '#f7faff', borderRadius: 12, padding: 12 }}>
         <div style={{ fontWeight: 700 }}>Current event</div>
         <div style={{ marginTop: 4, color: '#445' }}>
-          {currentEventCode ? `Checked in to ${currentEventCode}. You can switch events anytime below.` : 'No active event selected yet. Check in now so match and pit scouting are pre-filled.'}
+          {currentEventCode ? `Checked in to ${currentEventName || currentEventCode}. You can switch events anytime below.` : 'No active event selected yet. Check in now so match and pit scouting are pre-filled.'}
         </div>
       </div>
 
@@ -163,7 +175,7 @@ export default function CheckInPage() {
               <div style={{ fontWeight: 600 }}>{e.name}</div>
               <div style={{ fontSize: 12, color: '#666' }}>{e.code} • {formatEventDate(e)}</div>
             </div>
-            <button onClick={() => chooseEvent(e.code)} style={{ padding: 8, borderRadius: 6, background: currentEventCode === e.code ? '#1d4ed8' : '#111', color: '#fff' }}>
+            <button onClick={() => chooseEvent(e.code, e.name)} style={{ padding: 8, borderRadius: 6, background: currentEventCode === e.code ? '#1d4ed8' : '#111', color: '#fff' }}>
               {currentEventCode === e.code ? 'Selected' : 'Use this event'}
             </button>
           </div>
