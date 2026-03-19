@@ -337,12 +337,18 @@ export default function ScoutPage() {
                 <input type="checkbox" checked={!!values[f.label]} onChange={(e) => setValue(f.label, e.target.checked)} />
               )}
               {f.type === 'text' && (
-                <textarea value={values[f.label] ?? ''} onChange={(e) => setValue(f.label, e.target.value)} rows={3} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }} />
+                <textarea
+                  value={typeof values[f.label] === 'string' ? values[f.label] : ''}
+                  onChange={(e) => setValue(f.label, e.target.value)}
+                  rows={3}
+                  style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
+                />
               )}
               {f.type === 'multiselect' && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {(f.options || []).map((opt) => {
-                    const selected: string = values[f.label] || '';
+                    const rawSelected = values[f.label];
+                    const selected = typeof rawSelected === 'string' ? rawSelected : '';
                     const isOn = selected === opt;
                     return (
                       <button
