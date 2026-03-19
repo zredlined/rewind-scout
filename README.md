@@ -39,6 +39,7 @@ TBA_AUTH_KEY=your_tba_key
 
 ## Bootstrap the database
 Run the SQL in `sql/bootstrap.sql` inside Supabase SQL editor. It creates:
+- `profiles` (name/team/current-event data for each authenticated user)
 - `form_templates` (season form definition)
 - `scouting_entries` (append‑only submissions)
 - permissive RLS policies (any authenticated user can read/write)

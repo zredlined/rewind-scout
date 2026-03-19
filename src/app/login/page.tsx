@@ -7,6 +7,31 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
 type Step = 'email' | 'otp' | 'sent' | 'profile';
+type ProfileRow = {
+  full_name: string | null;
+  team_number: number | null;
+};
+
+function isNetworkishError(err: unknown): boolean {
+  if (err instanceof TypeError) return true;
+  if (typeof err !== 'object' || err === null) return false;
+  const message = 'message' in err && typeof err.message === 'string' ? err.message : '';
+  const name = 'name' in err && typeof err.name === 'string' ? err.name : '';
+  const haystack = `${name} ${message}`.toLowerCase();
+  return haystack.includes('failed to fetch')
+    || haystack.includes('network')
+    || haystack.includes('fetch');
+}
+
+function toUserFacingError(err: unknown, fallback: string): string {
+  if (isNetworkishError(err)) {
+    return 'Supabase is unavailable right now.';
+  }
+  if (typeof err === 'object' && err !== null && 'message' in err && typeof err.message === 'string' && err.message) {
+    return err.message;
+  }
+  return fallback;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,32 +44,49 @@ export default function LoginPage() {
   const [scoutTeamNumber, setScoutTeamNumber] = useState('');
 
   async function handlePostAuth() {
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) return;
+    try {
+      const { data, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!data.user) return;
 
-    // Ensure a profile row exists
-    await supabase.from('profiles').upsert({
-      id: data.user.id,
-      email: data.user.email ?? null,
-      full_name: (data.user.user_metadata as Record<string, string>)?.full_name ?? null,
-    });
+      // Best effort: profile bootstrap should not block a valid auth session.
+      const { error: upsertError } = await supabase.from('profiles').upsert({
+        id: data.user.id,
+        email: data.user.email ?? null,
+        full_name: typeof data.user.user_metadata?.full_name === 'string'
+          ? data.user.user_metadata.full_name
+          : null,
+      });
+      if (upsertError) {
+        console.error('Profile upsert failed during post-auth bootstrap', upsertError);
+      }
 
-    // Check if profile is complete (has name + team number)
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('full_name,team_number')
-      .eq('id', data.user.id)
-      .maybeSingle();
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('full_name,team_number')
+        .eq('id', data.user.id)
+        .maybeSingle();
 
-    const name = (profile as any)?.full_name;
-    const team = (profile as any)?.team_number;
+      if (profileError) {
+        console.error('Profile lookup failed during post-auth bootstrap', profileError);
+        setStep('profile');
+        return;
+      }
 
-    if (name && team) {
-      router.replace('/check-in');
-    } else {
-      // Pre-fill with whatever we already have
-      if (name) setFullName(name);
-      setStep('profile');
+      const typedProfile = profile as ProfileRow | null;
+      const name = typedProfile?.full_name;
+      const team = typedProfile?.team_number;
+
+      if (name && team) {
+        router.replace('/check-in');
+      } else {
+        if (name) setFullName(name);
+        setStep('profile');
+      }
+    } catch (err) {
+      const message = toUserFacingError(err, 'Unable to finish sign-in');
+      console.error('Post-auth flow failed', err);
+      setError(message);
     }
   }
 
@@ -69,17 +111,23 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error: err } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: typeof window !== 'undefined' ? window.location.origin : '',
-      },
-    });
-    setLoading(false);
-    if (err) {
-      setError(err.message);
-    } else {
-      setStep('sent');
+    try {
+      const { error: err } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/login` : '',
+        },
+      });
+      if (err) {
+        setError(toUserFacingError(err, 'Unable to send sign-in link'));
+      } else {
+        setStep('sent');
+      }
+    } catch (err) {
+      console.error('Sign-in link request failed', err);
+      setError(toUserFacingError(err, 'Unable to send sign-in link'));
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -87,30 +135,53 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) { setError('Not signed in'); setLoading(false); return; }
-    const { error: err } = await supabase.from('profiles').upsert({
-      id: data.user.id,
-      full_name: fullName.trim(),
-      team_number: parseInt(scoutTeamNumber, 10),
-    } as any);
-    setLoading(false);
-    if (err) { setError(err.message); return; }
-    router.replace('/check-in');
+    try {
+      const { data, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        setError(toUserFacingError(userError, 'Unable to load your account'));
+        return;
+      }
+      if (!data.user) {
+        setError('Not signed in');
+        return;
+      }
+      const { error: err } = await supabase.from('profiles').upsert({
+        id: data.user.id,
+        email: data.user.email ?? null,
+        full_name: fullName.trim(),
+        team_number: parseInt(scoutTeamNumber, 10),
+      });
+      if (err) {
+        setError(toUserFacingError(err, 'Unable to save your profile'));
+        return;
+      }
+      router.replace('/check-in');
+    } catch (err) {
+      console.error('Profile save failed', err);
+      setError(toUserFacingError(err, 'Unable to save your profile'));
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleVerifyOtp(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error: err } = await supabase.auth.verifyOtp({
-      email,
-      token: otp,
-      type: 'email',
-    });
-    setLoading(false);
-    if (err) {
-      setError(err.message);
+    try {
+      const { error: err } = await supabase.auth.verifyOtp({
+        email,
+        token: otp,
+        type: 'email',
+      });
+      if (err) {
+        setError(toUserFacingError(err, 'Unable to verify code'));
+      }
+    } catch (err) {
+      console.error('OTP verification failed', err);
+      setError(toUserFacingError(err, 'Unable to verify code'));
+    } finally {
+      setLoading(false);
     }
     // onAuthStateChange will handle redirect on success
   }
