@@ -203,7 +203,8 @@ export default function PitScoutingPage() {
             {f.type === 'multiselect' && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {(f.options || []).map((opt) => {
-                  const selected: string = values[f.label] || '';
+                  const rawSelected = values[f.label];
+                  const selected = typeof rawSelected === 'string' ? rawSelected : '';
                   const isOn = selected === opt;
                   return (
                     <button
@@ -283,4 +284,3 @@ export default function PitScoutingPage() {
     </div>
   );
 }
-
