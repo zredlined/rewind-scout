@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useRequireAuth } from '@/lib/AuthContext';
 
 type LeaderRow = {
   scoutId: string;
@@ -34,19 +35,16 @@ type ProfileRow = {
 };
 
 export default function MePage() {
-  const [meEmail, setMeEmail] = useState<string>('');
+  const { user } = useRequireAuth();
   const [meId, setMeId] = useState<string>('');
   const [scope, setScope] = useState<'event' | 'season'>('event');
   const [rows, setRows] = useState<LeaderRow[]>([]);
   const [status, setStatus] = useState<string>('');
 
   const load = useCallback(async () => {
+    if (!user) return;
     setStatus('Loading...');
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) { window.location.href = '/login'; return; }
-    const currentUserEmail = auth.user.email || '';
-    const currentUserId = auth.user.id;
-    setMeEmail(currentUserEmail);
+    const currentUserId = user.id;
     setMeId(currentUserId);
 
     // Determine filters
@@ -99,7 +97,7 @@ export default function MePage() {
 
     // Ensure current user shows a friendly label even if profile is missing
     if (currentUserId && !people[currentUserId]) {
-      people[currentUserId] = { name: currentUserEmail || currentUserId, email: currentUserEmail || '' };
+      people[currentUserId] = { name: user?.displayName || currentUserId, email: '' };
     }
 
     const out: LeaderRow[] = ids.map(id => {
@@ -111,7 +109,7 @@ export default function MePage() {
 
     setRows(out);
     setStatus('');
-  }, [scope]);
+  }, [scope, user]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -126,50 +124,50 @@ export default function MePage() {
   }, [rows, meId]);
 
   return (
-    <div style={{ padding: 16, maxWidth: 900, margin: '0 auto', display: 'grid', gap: 12 }}>
+    <div className="p-4 max-w-4xl mx-auto grid gap-3">
       <h1>Scout Leaderboard</h1>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5">
             <input type="radio" name="scope" checked={scope==='event'} onChange={() => setScope('event')} /> Current event
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <label className="flex items-center gap-1.5">
             <input type="radio" name="scope" checked={scope==='season'} onChange={() => setScope('season')} /> Current season
           </label>
         </div>
-        <button onClick={load} style={{ padding: 8, borderRadius: 6, background: '#111', color: '#fff' }}>Refresh</button>
-        <span style={{ color: '#555' }}>{status}</span>
+        <button onClick={load} className="px-3 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700">Refresh</button>
+        <span className="text-zinc-500 dark:text-zinc-400">{status}</span>
       </div>
 
-      <div style={{ border: '1px solid #eee', padding: 10, borderRadius: 8 }}>
-        <div>Your account: {meEmail} {meRank ? `(Rank #${meRank})` : ''}</div>
+      <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
+        <div className="text-zinc-900 dark:text-zinc-100">Your account: {user?.displayName ?? ''} {meRank ? `(Rank #${meRank})` : ''}</div>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>#</th>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Scout</th>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Email</th>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Match entries</th>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Pit entries</th>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Total</th>
+              <th className="border-b border-zinc-200 dark:border-zinc-700 text-left p-1.5 bg-zinc-50 dark:bg-zinc-800">#</th>
+              <th className="border-b border-zinc-200 dark:border-zinc-700 text-left p-1.5 bg-zinc-50 dark:bg-zinc-800">Scout</th>
+              <th className="border-b border-zinc-200 dark:border-zinc-700 text-left p-1.5 bg-zinc-50 dark:bg-zinc-800">Email</th>
+              <th className="border-b border-zinc-200 dark:border-zinc-700 text-left p-1.5 bg-zinc-50 dark:bg-zinc-800">Match entries</th>
+              <th className="border-b border-zinc-200 dark:border-zinc-700 text-left p-1.5 bg-zinc-50 dark:bg-zinc-800">Pit entries</th>
+              <th className="border-b border-zinc-200 dark:border-zinc-700 text-left p-1.5 bg-zinc-50 dark:bg-zinc-800">Total</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r, idx) => (
-              <tr key={r.scoutId} style={{ background: r.scoutId === meId ? 'rgba(16,185,129,0.08)' : undefined }}>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{idx + 1}</td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.name}</td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.email}</td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.matchCount}</td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.pitCount}</td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6, fontWeight: 700 }}>{r.total}</td>
+              <tr key={r.scoutId} style={r.scoutId === meId ? { background: 'rgba(16,185,129,0.08)' } : undefined}>
+                <td className="border-b border-zinc-100 dark:border-zinc-800 p-1.5">{idx + 1}</td>
+                <td className="border-b border-zinc-100 dark:border-zinc-800 p-1.5">{r.name}</td>
+                <td className="border-b border-zinc-100 dark:border-zinc-800 p-1.5">{r.email}</td>
+                <td className="border-b border-zinc-100 dark:border-zinc-800 p-1.5">{r.matchCount}</td>
+                <td className="border-b border-zinc-100 dark:border-zinc-800 p-1.5">{r.pitCount}</td>
+                <td className="border-b border-zinc-100 dark:border-zinc-800 p-1.5 font-bold">{r.total}</td>
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: 10, color: '#666' }}>No entries yet.</td></tr>
+              <tr><td colSpan={6} className="p-2.5 text-zinc-500 dark:text-zinc-400">No entries yet.</td></tr>
             )}
           </tbody>
         </table>

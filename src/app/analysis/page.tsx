@@ -3,8 +3,8 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { useRequireAuth } from '@/lib/AuthContext';
 import { Bar, BarChart, CartesianGrid, Tooltip, XAxis, YAxis, ResponsiveContainer, Legend } from 'recharts';
 
 type MetricValue = string | number | boolean | string[] | null | undefined;
@@ -43,7 +43,7 @@ function getStoredCurrentEventCode(): string | null {
 }
 
 export default function AnalysisPage() {
-  const router = useRouter();
+  useRequireAuth();
   const [teamNumber, setTeamNumber] = useState<string>('');
   // Removed timeframe slider; scope handles event vs season
   const [rows, setRows] = useState<Entry[]>([]);
@@ -154,10 +154,6 @@ export default function AnalysisPage() {
   }
 
   useEffect(() => {
-    // require auth
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) router.replace('/login');
-    });
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -228,32 +224,32 @@ export default function AnalysisPage() {
   }
 
   return (
-    <div style={{ padding: 16, maxWidth: 960, margin: '0 auto', display: 'grid', gap: 12 }}>
+    <div className="p-4 max-w-[960px] mx-auto grid gap-3">
       <h1>Analysis</h1>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div className="flex gap-3 items-center flex-wrap">
         <label>
           Team Number
-          <input value={teamNumber} onChange={(e) => setTeamNumber(e.target.value)} placeholder="2767" style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
+          <input value={teamNumber} onChange={(e) => setTeamNumber(e.target.value)} placeholder="2767" className="ml-2 px-2 py-1.5 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" />
         </label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5">
             <input type="radio" name="scope" checked={scope==='event'} onChange={() => setScope('event')} />
             Current event
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <label className="flex items-center gap-1.5">
             <input type="radio" name="scope" checked={scope==='season'} onChange={() => setScope('season')} />
             Current season
           </label>
         </div>
-        <button onClick={load} style={{ padding: 8, borderRadius: 6, background: '#111', color: '#fff' }}>Load</button>
-        <span style={{ color: '#555' }}>{status}</span>
+        <button onClick={load} className="px-3 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700">Load</button>
+        <span className="text-zinc-500 dark:text-zinc-400">{status}</span>
       </div>
 
       {numericMetrics.length > 0 && (
         <>
           {/* Summary metric cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginBottom: 8 }}>
+          <div className="grid gap-3 mb-2 [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
             {numericMetrics.map((metric) => {
               if (!hasTeamNumericData(metric)) return null;
               const { teamAvg, othersAvg } = computeTeamVsField(metric);
@@ -261,11 +257,11 @@ export default function AnalysisPage() {
               // Hide cards with no data
               if (Number.isNaN(teamAvg) && Number.isNaN(othersAvg)) return null;
               return (
-                <div key={metric} style={{ border: '1px solid #eee', borderRadius: 8, padding: 12, background: '#fafafa' }}>
-                  <div style={{ fontSize: 12, color: '#666' }}>{metric}</div>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'baseline', marginTop: 4 }}>
-                    <div style={{ fontSize: 24, fontWeight: 700 }}>{teamAvg}</div>
-                    <div style={{ fontSize: 12, color: '#666' }}>vs Others {othersAvg} ({deltaPct.toFixed(0)}%)</div>
+                <div key={metric} className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-3 bg-zinc-50 dark:bg-zinc-800">
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400">{metric}</div>
+                  <div className="flex gap-3 items-baseline mt-1">
+                    <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{teamAvg}</div>
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400">vs Others {othersAvg} ({deltaPct.toFixed(0)}%)</div>
                   </div>
                 </div>
               );
@@ -273,7 +269,7 @@ export default function AnalysisPage() {
           </div>
 
           {/* Team progression charts (compact) */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
             {numericMetrics.map((metric) => {
               if (!hasTeamNumericData(metric)) return null;
               const data = rows
@@ -283,8 +279,8 @@ export default function AnalysisPage() {
                 .reverse(); // newest first above; reverse for progression
               if (data.length === 0) return null; // hide empty charts
               return (
-                <div key={metric} style={{ height: 220, background: '#fafafa', border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
-                  <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{metric}</div>
+                <div key={metric} className="h-[220px] bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2">
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">{metric}</div>
                   <ResponsiveContainer width="100%" height="85%">
                     <BarChart data={data} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -305,7 +301,7 @@ export default function AnalysisPage() {
       {categoricalMetrics.length > 0 && (
         <>
           <h2>Multi‑select metrics</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+          <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
             {categoricalMetrics.map((metric) => {
               // collect all option values seen for this metric
               const optionSet = new Set<string>();
@@ -333,8 +329,8 @@ export default function AnalysisPage() {
               // hide if no team has entries for this metric
               if (counts.every(c => c.Team === 0)) return null;
               return (
-                <div key={metric} style={{ height: 240, background: '#fafafa', border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
-                  <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>{metric}</div>
+                <div key={metric} className="h-[240px] bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg p-2">
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">{metric}</div>
                   <ResponsiveContainer width="100%" height="85%">
                     <BarChart data={counts} margin={{ top: 8, right: 8, bottom: 8, left: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -356,8 +352,8 @@ export default function AnalysisPage() {
       {/* Recent text fields (bottom) */}
       <div>
         <h2>Recent text notes</h2>
-        {textKeys.length === 0 && <div style={{ color: '#666' }}>No text fields configured.</div>}
-        <div style={{ display: 'grid', gap: 12 }}>
+        {textKeys.length === 0 && <div className="text-zinc-500 dark:text-zinc-400">No text fields configured.</div>}
+        <div className="grid gap-3">
           {textKeys.map((key) => {
             const teamRows = rows.filter((r) => r.team_number === Number(teamNumber));
             const notes = teamRows
@@ -367,12 +363,12 @@ export default function AnalysisPage() {
             if (notes.length === 0) return null;
             return (
               <div key={key}>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>{key}</div>
-                <div style={{ display: 'grid', gap: 8 }}>
+                <div className="font-semibold mb-1.5 text-zinc-900 dark:text-zinc-100">{key}</div>
+                <div className="grid gap-2">
                   {notes.map((x, i) => (
-                    <div key={i} style={{ border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
-                      <div style={{ fontSize: 12, color: '#666' }}>{x.t}</div>
-                      <div>{x.c}</div>
+                    <div key={i} className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-2">
+                      <div className="text-xs text-zinc-500 dark:text-zinc-400">{x.t}</div>
+                      <div className="text-zinc-900 dark:text-zinc-100">{x.c}</div>
                     </div>
                   ))}
                 </div>
@@ -389,27 +385,27 @@ export default function AnalysisPage() {
           {(() => {
             const tnum = Number(teamNumber);
             const teamPit = pitRows.filter(r => r.team_number === tnum);
-            if (!teamPit.length) return <div style={{ color: '#666' }}>No pit entry.</div>;
+            if (!teamPit.length) return <div className="text-zinc-500 dark:text-zinc-400">No pit entry.</div>;
             const entry = teamPit[0];
             const photos: string[] = entry.photos || [];
             return (
-              <div style={{ display: 'grid', gap: 10 }}>
+              <div className="grid gap-2.5">
                 {photos.length > 0 && (
-                  <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
+                  <div className="flex gap-2 overflow-x-auto">
                     {photos.map((url, i) => (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img key={i} src={url} alt="robot" width={96} height={96} style={{ objectFit: 'cover', borderRadius: 6, border: '1px solid #eee' }} />
+                      <img key={i} src={url} alt="robot" width={96} height={96} className="object-cover rounded-md border border-zinc-200 dark:border-zinc-700" />
                     ))}
                   </div>
                 )}
-                <div style={{ display: 'grid', gap: 6 }}>
+                <div className="grid gap-1.5">
                   {pitTemplate.map((f) => {
                     const val = entry.metrics?.[f.label];
                     if (val === undefined || val === '' || (Array.isArray(val) && val.length === 0)) return null;
                     return (
-                      <div key={f.id} style={{ display: 'flex', gap: 8 }}>
-                        <div style={{ width: 180, color: '#555' }}>{f.label}</div>
-                        <div style={{ fontWeight: 600 }}>{Array.isArray(val) ? val.join(', ') : String(val)}</div>
+                      <div key={f.id} className="flex gap-2">
+                        <div className="w-[180px] text-zinc-500 dark:text-zinc-400">{f.label}</div>
+                        <div className="font-semibold text-zinc-900 dark:text-zinc-100">{Array.isArray(val) ? val.join(', ') : String(val)}</div>
                       </div>
                     );
                   })}
@@ -421,40 +417,40 @@ export default function AnalysisPage() {
       )}
 
       <h2>Raw Entries</h2>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Match</th>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Team</th>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Event</th>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Scout</th>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Time</th>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Metrics</th>
+              <th className="border-b border-zinc-200 dark:border-zinc-700 text-left px-1.5 py-1.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100">Match</th>
+              <th className="border-b border-zinc-200 dark:border-zinc-700 text-left px-1.5 py-1.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100">Team</th>
+              <th className="border-b border-zinc-200 dark:border-zinc-700 text-left px-1.5 py-1.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100">Event</th>
+              <th className="border-b border-zinc-200 dark:border-zinc-700 text-left px-1.5 py-1.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100">Scout</th>
+              <th className="border-b border-zinc-200 dark:border-zinc-700 text-left px-1.5 py-1.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100">Time</th>
+              <th className="border-b border-zinc-200 dark:border-zinc-700 text-left px-1.5 py-1.5 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100">Metrics</th>
             </tr>
           </thead>
           <tbody>
             {(teamNumber ? rows.filter((r) => r.team_number === Number(teamNumber)) : []).map((r) => (
               <tr key={r.id}>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.match_key}</td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <td className="border-b border-zinc-100 dark:border-zinc-700 px-1.5 py-1.5 text-zinc-900 dark:text-zinc-100">{r.match_key}</td>
+                <td className="border-b border-zinc-100 dark:border-zinc-700 px-1.5 py-1.5 text-zinc-900 dark:text-zinc-100">
+                  <div className="flex items-center gap-1.5">
                     {teamInfo[r.team_number]?.logo_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={teamInfo[r.team_number]!.logo_url!} alt="" width={18} height={18} style={{ borderRadius: 4 }} />
+                      <img src={teamInfo[r.team_number]!.logo_url!} alt="" width={18} height={18} className="rounded" />
                     ) : null}
                     <span>{teamInfo[r.team_number]?.nickname || teamInfo[r.team_number]?.name || r.team_number}</span>
                   </div>
                 </td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{eventNames[r.event_code] ?? r.event_code}</td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{r.scout_name ?? ''}</td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{formatTime(r.scouted_at ?? r.created_at)}</td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6, fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{JSON.stringify(r.metrics)}</td>
+                <td className="border-b border-zinc-100 dark:border-zinc-700 px-1.5 py-1.5 text-zinc-900 dark:text-zinc-100">{eventNames[r.event_code] ?? r.event_code}</td>
+                <td className="border-b border-zinc-100 dark:border-zinc-700 px-1.5 py-1.5 text-zinc-900 dark:text-zinc-100">{r.scout_name ?? ''}</td>
+                <td className="border-b border-zinc-100 dark:border-zinc-700 px-1.5 py-1.5 text-zinc-900 dark:text-zinc-100">{formatTime(r.scouted_at ?? r.created_at)}</td>
+                <td className="border-b border-zinc-100 dark:border-zinc-700 px-1.5 py-1.5 font-mono whitespace-pre-wrap text-zinc-900 dark:text-zinc-100">{JSON.stringify(r.metrics)}</td>
               </tr>
             ))}
             {!teamNumber && (
               <tr>
-                <td colSpan={6} style={{ padding: 8, color: '#666' }}>Enter a team number above to view their entries.</td>
+                <td colSpan={6} className="px-2 py-2 text-zinc-500 dark:text-zinc-400">Enter a team number above to view their entries.</td>
               </tr>
             )}
           </tbody>

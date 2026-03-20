@@ -2,9 +2,9 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { useRequireAuth } from '@/lib/AuthContext';
 
 function errorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -12,22 +12,16 @@ function errorMessage(err: unknown): string {
 }
 
 export default function Dashboard() {
-  const [email, setEmail] = useState<string | null>(null);
+  const { user, loading } = useRequireAuth();
   const [season, setSeason] = useState<string>('2026');
   const [eventCode, setEventCode] = useState<string>('');
   const [status, setStatus] = useState<string>('');
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setEmail(data.user?.email ?? null);
-    });
-  }, []);
-
-  if (!email) {
+  if (loading || !user) {
     return (
-      <div style={{ padding: 24 }}>
-        <p>Not signed in.</p>
-        <Link href="/login">Go to Login</Link>
+      <div className="p-6">
+        <p>{loading ? 'Loading...' : 'Not signed in.'}</p>
+        {!loading && <Link href="/login">Go to Login</Link>}
       </div>
     );
   }
@@ -63,49 +57,49 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className="p-6">
       <h1>Welcome</h1>
-      <p>Signed in as {email}</p>
-      <div style={{ marginTop: 24, display: 'grid', gap: 12, maxWidth: 720 }}>
+      <p>Signed in as {user.displayName}</p>
+      <div className="mt-6 grid gap-3 max-w-2xl">
         <h2>Navigation</h2>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <Link href="/scout" style={{ padding: 10, borderRadius: 6, background: '#111', color: '#fff' }}>Go to Scouting Form</Link>
-          <Link href="/analysis" style={{ padding: 10, borderRadius: 6, background: '#111', color: '#fff' }}>View Analysis</Link>
-          <Link href="/form-builder" style={{ padding: 10, borderRadius: 6, background: '#111', color: '#fff' }}>Build/Edit Scouting Form</Link>
+        <div className="flex gap-3 flex-wrap">
+          <Link href="/scout" className="px-3 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700">Go to Scouting Form</Link>
+          <Link href="/analysis" className="px-3 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700">View Analysis</Link>
+          <Link href="/form-builder" className="px-3 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700">Build/Edit Scouting Form</Link>
         </div>
 
-        <hr style={{ margin: '16px 0' }} />
+        <hr className="my-4 border-zinc-200 dark:border-zinc-700" />
 
         <h2>TBA Imports</h2>
-        <label style={{ display: 'grid', gap: 6 }}>
+        <label className="grid gap-1.5">
           <span>Season</span>
           <input
             value={season}
             onChange={(e) => setSeason(e.target.value)}
             placeholder="2026"
-            style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
+            className="px-2 py-1.5 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
           />
         </label>
-        <button onClick={importEvents} style={{ padding: 10, borderRadius: 6, background: '#111', color: '#fff' }}>
+        <button onClick={importEvents} className="px-3 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700">
           Import events for season
         </button>
 
-        <label style={{ display: 'grid', gap: 6 }}>
+        <label className="grid gap-1.5">
           <span>Event code (e.g., 2026miket)</span>
           <input
             value={eventCode}
             onChange={(e) => setEventCode(e.target.value)}
             placeholder="2026miket"
-            style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }}
+            className="px-2 py-1.5 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
           />
         </label>
-        <button onClick={importMatches} style={{ padding: 10, borderRadius: 6, background: '#111', color: '#fff' }}>
+        <button onClick={importMatches} className="px-3 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700">
           Import matches for event
         </button>
 
-        <div style={{ color: '#555' }}>{status}</div>
+        <div className="text-zinc-500 dark:text-zinc-400">{status}</div>
 
-        <div style={{ marginTop: 16 }}>
+        <div className="mt-4">
           <Link href="/">Home</Link>
         </div>
       </div>

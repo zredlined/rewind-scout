@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { useRequireAuth } from '@/lib/AuthContext';
 
 type PitField = { id: string; label: string; type: 'number' | 'text' | 'multiselect'; options?: string[] };
 type PitSubmissionSummary = { eventCode: string; teamNumber: string };
@@ -29,24 +30,34 @@ function getStoredSeason(defaultSeason: number): number {
   return defaultSeason;
 }
 
+const inputCls = 'ml-2 px-2 py-1.5 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100';
+const btnPrimary = 'px-3 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700';
+const btnSecondary = 'px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800';
+
 export default function PitScoutingPage() {
   const router = useRouter();
+  const { user } = useRequireAuth();
   const defaultSeason = new Date().getFullYear();
-  const [season, setSeason] = useState<number>(() => getStoredSeason(defaultSeason));
-  const [eventCode, setEventCode] = useState<string>(getStoredCurrentEventCode);
+  const [season, setSeason] = useState<number>(defaultSeason);
+  const [eventCode, setEventCode] = useState<string>('');
   const [teamNumber, setTeamNumber] = useState<string>('');
   const [fields, setFields] = useState<PitField[]>([]);
   const [values, setValues] = useState<Record<string, PitFieldValue>>({});
   const [status, setStatus] = useState<string>('');
   const [teams, setTeams] = useState<Array<{ number: number; name: string; logo?: string }>>([]);
   const [photos, setPhotos] = useState<File[]>([]);
-  const [hasCurrentEvent] = useState(() => Boolean(getStoredCurrentEventCode()));
-  const [justSubmitted, setJustSubmitted] = useState(false);
-  const [submissionSummary, setSubmissionSummary] = useState<PitSubmissionSummary | null>(null);
+  const [hasCurrentEvent, setHasCurrentEvent] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => { if (!data.user) router.replace('/login'); });
-  }, [router]);
+    const code = getStoredCurrentEventCode();
+    if (code) {
+      setEventCode(code);
+      setSeason(getStoredSeason(defaultSeason));
+      setHasCurrentEvent(true);
+    }
+  }, [defaultSeason]);
+  const [justSubmitted, setJustSubmitted] = useState(false);
+  const [submissionSummary, setSubmissionSummary] = useState<PitSubmissionSummary | null>(null);
 
   useEffect(() => {
     async function loadTemplate() {
@@ -61,7 +72,7 @@ export default function PitScoutingPage() {
       setFields(def);
       const init: Record<string, PitFieldValue> = {};
       def.forEach(f => {
-        if (f.type === 'number') init[f.label] = 0;
+        if (f.type === 'number') init[f.label] = '';
         if (f.type === 'text') init[f.label] = '';
         if (f.type === 'multiselect') init[f.label] = '';
       });
@@ -74,7 +85,6 @@ export default function PitScoutingPage() {
   useEffect(() => {
     async function loadTeams() {
       if (!eventCode) { setTeams([]); return; }
-      // derive teams from matches for the event, then join frc_teams for names
       const { data: ev } = await supabase.from('events').select('id').eq('code', eventCode).maybeSingle<EventIdRow>();
       if (!ev?.id) { setTeams([]); return; }
       const { data: ms } = await supabase.from('matches').select('red_teams,blue_teams').eq('event_id', ev.id);
@@ -91,7 +101,6 @@ export default function PitScoutingPage() {
         name: team.nickname || team.name || String(team.number),
         logo: team.logo_url || undefined,
       }));
-      // sort by team number
       t.sort((a, b) => a.number - b.number);
       setTeams(t);
     }
@@ -124,8 +133,7 @@ export default function PitScoutingPage() {
   async function submit() {
     if (!eventCode || !teamNumber) { setStatus('Enter event code and team number'); return; }
     setStatus('Submitting...');
-    const { data: userData } = await supabase.auth.getUser();
-    const scoutId = userData.user?.id ?? null;
+    const scoutId = user?.id ?? null;
     const photoUrls = await uploadPhotos();
     const payload = {
       season,
@@ -140,7 +148,7 @@ export default function PitScoutingPage() {
     const submittedTeamNumber = teamNumber;
     const init: Record<string, PitFieldValue> = {};
     fields.forEach(f => {
-      if (f.type === 'number') init[f.label] = 0;
+      if (f.type === 'number') init[f.label] = '';
       if (f.type === 'text') init[f.label] = '';
       if (f.type === 'multiselect') init[f.label] = '';
     });
@@ -153,55 +161,57 @@ export default function PitScoutingPage() {
   }
 
   return (
-    <div style={{ padding: 16, maxWidth: 840, margin: '0 auto', display: 'grid', gap: 12 }}>
-      <h1>Pit Scouting</h1>
+    <div className="mx-auto max-w-3xl p-4 grid gap-3">
+      <h1 className="text-xl font-bold">Pit Scouting</h1>
+
       {!hasCurrentEvent && (
-        <div style={{ border: '1px solid #f3d18a', background: '#fff8e8', borderRadius: 12, padding: 12 }}>
-          <div style={{ fontWeight: 700 }}>Check in before pit scouting</div>
-          <div style={{ marginTop: 4, color: '#6b5a22' }}>
+        <div className="rounded-xl border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-950 p-3">
+          <div className="font-bold text-zinc-900 dark:text-zinc-100">Check in before pit scouting</div>
+          <div className="mt-1 text-sm text-yellow-800 dark:text-yellow-300">
             Checking in first narrows pit teams to the event you are actually working.
           </div>
-          <button onClick={() => router.push('/check-in')} style={{ marginTop: 10, padding: 8, borderRadius: 6, background: '#111', color: '#fff' }}>
+          <button onClick={() => router.push('/check-in')} className={`mt-2.5 ${btnPrimary}`}>
             Go to check-in
           </button>
         </div>
       )}
-      <div style={{ display: 'grid', gap: 12 }}>
-        <label>
+
+      <div className="grid gap-3">
+        <label className="text-sm font-medium">
           Season
-          <input type="number" value={season} onChange={(e) => setSeason(parseInt(e.target.value || String(defaultSeason), 10))} style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
+          <input type="number" value={season} onChange={(e) => setSeason(parseInt(e.target.value || String(defaultSeason), 10))} className={inputCls} />
         </label>
-        <label>
+        <label className="text-sm font-medium">
           Event Code
-          <input value={eventCode} onChange={(e) => setEventCode(e.target.value)} placeholder="2026miket" style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
+          <input value={eventCode} onChange={(e) => setEventCode(e.target.value)} placeholder="2026miket" className={inputCls} />
         </label>
-        <label>
+        <label className="text-sm font-medium">
           Team
-          <select value={teamNumber} onChange={(e) => setTeamNumber(e.target.value)} style={{ marginLeft: 8, padding: 6 }}>
+          <select value={teamNumber} onChange={(e) => setTeamNumber(e.target.value)} className={`${inputCls}`}>
             <option value="">Select team</option>
             {teams.map(t => (
               <option key={t.number} value={t.number}>{t.number} — {t.name}</option>
             ))}
           </select>
         </label>
-        <label>
+        <label className="text-sm font-medium">
           Or enter team
-          <input value={teamNumber} onChange={(e) => setTeamNumber(e.target.value)} placeholder="2767" style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
+          <input value={teamNumber} onChange={(e) => setTeamNumber(e.target.value)} placeholder="2767" className={inputCls} />
         </label>
       </div>
 
-      <div style={{ marginTop: 8, display: 'grid', gap: 12 }}>
+      <div className="mt-2 grid gap-3">
         {fields.map((f) => (
-          <div key={f.id} style={{ display: 'grid', gap: 8 }}>
-            <label>{f.label}</label>
+          <div key={f.id} className="grid gap-2">
+            <label className="text-sm font-medium">{f.label}</label>
             {f.type === 'number' && (
-              <input type="number" value={values[f.label] ?? 0} onChange={(e) => setValue(f.label, Number(e.target.value))} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }} />
+              <input type="number" value={values[f.label] ?? ''} onChange={(e) => setValue(f.label, e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" className={`${inputCls} ml-0`} />
             )}
             {f.type === 'text' && (
-              <textarea value={values[f.label] ?? ''} onChange={(e) => setValue(f.label, e.target.value)} rows={3} style={{ padding: 8, border: '1px solid #ccc', borderRadius: 6 }} />
+              <textarea value={values[f.label] ?? ''} onChange={(e) => setValue(f.label, e.target.value)} rows={3} className={`${inputCls} ml-0`} />
             )}
             {f.type === 'multiselect' && (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div className="flex gap-2 flex-wrap">
                 {(f.options || []).map((opt) => {
                   const rawSelected = values[f.label];
                   const selected = typeof rawSelected === 'string' ? rawSelected : '';
@@ -211,7 +221,7 @@ export default function PitScoutingPage() {
                       key={opt}
                       type="button"
                       onClick={() => setValue(f.label, isOn ? '' : opt)}
-                      style={{ padding: '6px 10px', borderRadius: 16, border: '1px solid #ccc', background: isOn ? '#111' : '#fff', color: isOn ? '#fff' : '#111' }}
+                      className={`px-2.5 py-1.5 rounded-full border text-sm ${isOn ? 'bg-blue-600 border-blue-600 text-white' : 'border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
                     >
                       {opt}
                     </button>
@@ -223,59 +233,51 @@ export default function PitScoutingPage() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gap: 8 }}>
-        <label>
-          Photos
-          <input type="file" accept="image/*" capture="environment" multiple onChange={(e) => onPickPhotos(e.target.files)} style={{ display: 'block', marginTop: 6 }} />
+      <div className="grid gap-2">
+        <span className="text-sm font-medium">Photos</span>
+        <label className={`${btnSecondary} inline-flex items-center gap-2 cursor-pointer w-fit`}>
+          <span>📷</span>
+          <span>{photos.length ? `${photos.length} photo${photos.length > 1 ? 's' : ''} selected` : 'Take or choose photos'}</span>
+          <input type="file" accept="image/*" capture="environment" multiple onChange={(e) => onPickPhotos(e.target.files)} className="hidden" />
         </label>
-        <div style={{ display: 'flex', overflowX: 'auto', gap: 8 }}>
-          {photos.map((f, idx) => (
-            <div key={idx} style={{ minWidth: 80, minHeight: 80, border: '1px solid #eee', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4 }}>
-              <span style={{ fontSize: 12 }}>{f.name}</span>
-            </div>
-          ))}
-        </div>
+        {photos.length > 0 && (
+          <div className="flex overflow-x-auto gap-2">
+            {photos.map((f, idx) => (
+              <div key={idx} className="min-w-[80px] min-h-[80px] border border-zinc-200 dark:border-zinc-700 rounded-md flex items-center justify-center p-1 bg-zinc-50 dark:bg-zinc-800">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400 text-center break-all">{f.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-        <button onClick={submit} style={{ padding: 10, borderRadius: 6, background: '#111', color: '#fff' }}>Submit</button>
-        <span style={{ color: '#555' }}>{status}</span>
+      <div className="flex gap-3 items-center">
+        <button onClick={submit} className={btnPrimary}>Submit</button>
+        <span className="text-sm text-zinc-500 dark:text-zinc-400">{status}</span>
       </div>
 
       {justSubmitted && submissionSummary && (
-        <div style={{ border: '1px solid #c9f0d4', background: '#f3fff7', borderRadius: 12, padding: 14, display: 'grid', gap: 10 }}>
+        <div className="rounded-xl border border-green-300 dark:border-green-800 bg-green-50 dark:bg-green-950 p-3.5 grid gap-2.5">
           <div>
-            <div style={{ fontWeight: 700, color: '#155724' }}>Pit entry saved</div>
-            <div style={{ marginTop: 4, color: '#2b5b37' }}>
+            <div className="font-bold text-green-800 dark:text-green-300">Pit entry saved</div>
+            <div className="mt-1 text-sm text-green-700 dark:text-green-400">
               {submissionSummary.eventCode} • Team {submissionSummary.teamNumber}
             </div>
           </div>
-          <div style={{ color: '#35543d' }}>
+          <div className="text-sm text-green-700 dark:text-green-400">
             Keep working through the pit list, or jump out to analysis and the leaderboard.
           </div>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <button
-              onClick={() => setJustSubmitted(false)}
-              style={{ padding: 8, borderRadius: 6, background: '#111', color: '#fff' }}
-            >
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={() => setJustSubmitted(false)} className={btnPrimary}>
               Scout next pit
             </button>
-            <button
-              onClick={() => router.push('/analysis')}
-              style={{ padding: 8, borderRadius: 6, border: '1px solid #ccc' }}
-            >
+            <button onClick={() => router.push('/analysis')} className={btnSecondary}>
               View analysis
             </button>
-            <button
-              onClick={() => router.push('/me')}
-              style={{ padding: 8, borderRadius: 6, border: '1px solid #ccc' }}
-            >
+            <button onClick={() => router.push('/me')} className={btnSecondary}>
               View leaderboard
             </button>
-            <button
-              onClick={() => router.push('/check-in')}
-              style={{ padding: 8, borderRadius: 6, border: '1px solid #ccc' }}
-            >
+            <button onClick={() => router.push('/check-in')} className={btnSecondary}>
               Switch event
             </button>
           </div>

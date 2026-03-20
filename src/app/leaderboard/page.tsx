@@ -3,8 +3,8 @@
 export const dynamic = 'force-dynamic';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { useRequireAuth } from '@/lib/AuthContext';
 
 type MetricValue = string | number | boolean;
 type Entry = {
@@ -28,7 +28,6 @@ type FormField = {
 type FormTemplateRow = {
   form_definition: FormField[] | null;
 };
-type CellStyle = React.CSSProperties;
 
 function getStoredCurrentEventCode(): string | null {
   if (typeof window === 'undefined') return null;
@@ -40,19 +39,13 @@ function getStoredCurrentEventCode(): string | null {
 }
 
 export default function LeaderboardPage() {
-  const router = useRouter();
+  useRequireAuth();
   const [rows, setRows] = useState<Entry[]>([]);
   const [status, setStatus] = useState('');
   const [scope, setScope] = useState<'event' | 'season'>('event');
   const [metric, setMetric] = useState<string>('');
   const [teamInfo, setTeamInfo] = useState<Record<number, { nickname?: string; name?: string; logo_url?: string }>>({});
   const [counterKeys, setCounterKeys] = useState<string[]>([]);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) router.replace('/login');
-    });
-  }, [router]);
 
   const load = useCallback(async () => {
     setStatus('Loading...');
@@ -170,70 +163,68 @@ export default function LeaderboardPage() {
   }, [teamAverages, metric, numericMetrics]);
 
   return (
-    <div style={{ padding: 16, maxWidth: 1000, margin: '0 auto', display: 'grid', gap: 12 }}>
+    <div className="p-4 max-w-5xl mx-auto grid gap-3">
       <h1>Leaderboard</h1>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div className="flex gap-3 items-center flex-wrap">
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-1.5">
             <input type="radio" name="scope" checked={scope==='event'} onChange={() => setScope('event')} />
             Current event
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <label className="flex items-center gap-1.5">
             <input type="radio" name="scope" checked={scope==='season'} onChange={() => setScope('season')} />
             Current season
           </label>
         </div>
-        <label>
+        <label className="flex items-center gap-2">
           Sort by metric
-          <select value={metric} onChange={(e) => setMetric(e.target.value)} style={{ marginLeft: 8, padding: 6 }}>
+          <select value={metric} onChange={(e) => setMetric(e.target.value)} className="ml-2 px-2 py-1.5 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100">
             {numericMetrics.map((k) => (
               <option key={k} value={k}>{k}</option>
             ))}
           </select>
         </label>
-        <button onClick={load} style={{ padding: 8, borderRadius: 6, background: '#111', color: '#fff' }}>Refresh</button>
-        <span style={{ color: '#555' }}>{status}</span>
+        <button onClick={load} className="px-3 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700">Refresh</button>
+        <span className="text-zinc-500 dark:text-zinc-400">{status}</span>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
           <thead>
             <tr>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>#</th>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Team</th>
-              <th style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>Matches</th>
+              <th className="border-b border-zinc-200 dark:border-zinc-700 text-left p-1.5 bg-zinc-50 dark:bg-zinc-800">#</th>
+              <th className="border-b border-zinc-200 dark:border-zinc-700 text-left p-1.5 bg-zinc-50 dark:bg-zinc-800">Team</th>
+              <th className="border-b border-zinc-200 dark:border-zinc-700 text-left p-1.5 bg-zinc-50 dark:bg-zinc-800">Matches</th>
               {numericMetrics.map((k) => (
-                <th key={k} style={{ borderBottom: '1px solid #ddd', textAlign: 'left', padding: 6 }}>{k}</th>
+                <th key={k} className="border-b border-zinc-200 dark:border-zinc-700 text-left p-1.5 bg-zinc-50 dark:bg-zinc-800">{k}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {sorted.map((row, idx) => (
               <tr key={row.team}>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{idx + 1}</td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <td className="border-b border-zinc-100 dark:border-zinc-800 p-1.5">{idx + 1}</td>
+                <td className="border-b border-zinc-100 dark:border-zinc-800 p-1.5">
+                  <div className="flex items-center gap-1.5">
                     {teamInfo[row.team]?.logo_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={teamInfo[row.team]!.logo_url!} alt="" width={18} height={18} style={{ borderRadius: 4 }} />
+                      <img src={teamInfo[row.team]!.logo_url!} alt="" width={18} height={18} className="rounded" />
                     ) : null}
                     <span>{teamInfo[row.team]?.nickname || teamInfo[row.team]?.name || row.team}</span>
                   </div>
                 </td>
-                <td style={{ borderBottom: '1px solid #f0f0f0', padding: 6 }}>{row.count}</td>
+                <td className="border-b border-zinc-100 dark:border-zinc-800 p-1.5">{row.count}</td>
                 {numericMetrics.map((k) => {
                   const val = row.avgs[k] ?? 0;
                   // Heat map only for counter fields
                   const isCounter = counterKeys.includes(k);
                   const max = metricMax[k] || 0;
-                  let style: CellStyle = { borderBottom: '1px solid #f0f0f0', padding: 6 };
-                  if (isCounter && max > 0 && val > 0) {
-                    const intensity = Math.max(0, Math.min(1, val / max));
-                    const alpha = 0.15 + 0.35 * intensity; // 0.15..0.5
-                    style = { ...style, backgroundColor: `rgba(16,185,129,${alpha})`, fontWeight: val === max ? 700 : 400 };
-                  }
+                  const heatStyle: React.CSSProperties = (isCounter && max > 0 && val > 0)
+                    ? { backgroundColor: `rgba(16,185,129,${(0.15 + 0.35 * Math.max(0, Math.min(1, val / max))).toFixed(3)})` }
+                    : {};
+                  const isBold = isCounter && max > 0 && val === max;
                   return (
-                    <td key={k} style={style}>{val}</td>
+                    <td key={k} className={`border-b border-zinc-100 dark:border-zinc-800 p-1.5${isBold ? ' font-bold' : ''}`} style={heatStyle}>{val}</td>
                   );
                 })}
               </tr>

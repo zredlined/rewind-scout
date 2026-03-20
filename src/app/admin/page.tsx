@@ -2,8 +2,9 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useRequireAuth } from '@/lib/AuthContext';
 
 type EntryIdRow = { id: string };
 type ExportRow = {
@@ -17,13 +18,8 @@ type ExportRow = {
 };
 
 export default function AdminPage() {
+  useRequireAuth();
   const [status, setStatus] = useState<string>('');
-
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) window.location.href = '/login';
-    });
-  }, []);
 
   async function deleteLast24h() {
     if (!confirm('Delete entries from the last 24 hours?')) return;
@@ -75,13 +71,13 @@ export default function AdminPage() {
   }
 
   return (
-    <div style={{ padding: 16, maxWidth: 720, margin: '0 auto' }}>
+    <div className="p-4 max-w-2xl mx-auto">
       <h1>Admin</h1>
-      <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-        <button onClick={deleteLast24h} style={{ padding: 10, borderRadius: 6, border: '1px solid #ccc' }}>Delete last 24h</button>
-        <button onClick={deleteAll} style={{ padding: 10, borderRadius: 6, border: '1px solid #f22', color: '#f22' }}>Delete ALL</button>
-        <button onClick={exportCsv} style={{ padding: 10, borderRadius: 6, border: '1px solid #ccc' }}>Export CSV</button>
-        <span style={{ color: '#555' }}>{status}</span>
+      <div className="grid gap-3 mt-3">
+        <button onClick={deleteLast24h} className="px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800">Delete last 24h</button>
+        <button onClick={deleteAll} className="px-3 py-2 rounded-md bg-red-600 text-white font-medium hover:bg-red-700">Delete ALL</button>
+        <button onClick={exportCsv} className="px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800">Export CSV</button>
+        <span className="text-zinc-500 dark:text-zinc-400">{status}</span>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@/lib/AuthContext';
 import { supabase } from '@/lib/supabase';
 
 function getStoredCurrentEventCode(): string {
@@ -23,48 +24,53 @@ function getStoredCurrentEventName(): string {
 }
 
 export default function Header() {
-  const [email, setEmail] = useState<string | null>(null);
+  const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [currentEventCode, setCurrentEventCode] = useState(getStoredCurrentEventCode);
-  const [currentEventName, setCurrentEventName] = useState(getStoredCurrentEventName);
+  const [currentEventCode, setCurrentEventCode] = useState('');
+  const [currentEventName, setCurrentEventName] = useState('');
 
   useEffect(() => {
-    let mounted = true;
     const refreshCurrentEvent = () => {
-      if (!mounted) return;
       setCurrentEventCode(getStoredCurrentEventCode());
       setCurrentEventName(getStoredCurrentEventName());
     };
-    supabase.auth.getUser().then(({ data }) => {
-      if (!mounted) return;
-      setEmail(data.user?.email ?? null);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setEmail(session?.user?.email ?? null);
-    });
     refreshCurrentEvent();
     window.addEventListener('storage', refreshCurrentEvent);
     window.addEventListener('focus', refreshCurrentEvent);
     window.addEventListener('current-event-changed', refreshCurrentEvent);
     return () => {
-      mounted = false;
       window.removeEventListener('storage', refreshCurrentEvent);
       window.removeEventListener('focus', refreshCurrentEvent);
       window.removeEventListener('current-event-changed', refreshCurrentEvent);
-      sub.subscription.unsubscribe();
     };
   }, []);
 
-  async function logout() {
-    await supabase.auth.signOut();
-  }
+  useEffect(() => {
+    async function hydrateEventName() {
+      if (!currentEventCode || currentEventName) return;
+      const { data, error } = await supabase
+        .from('events')
+        .select('name')
+        .eq('code', currentEventCode)
+        .maybeSingle<{ name: string | null }>();
+      if (error) return;
+      const name = data?.name || '';
+      if (!name) return;
+      setCurrentEventName(name);
+      try {
+        localStorage.setItem('currentEventName', name);
+      } catch {}
+    }
+    void hydrateEventName();
+  }, [currentEventCode, currentEventName]);
 
   const initials = useMemo(() => {
-    if (!email) return '';
-    const name = email.split('@')[0];
-    return name.slice(0, 2).toUpperCase();
-  }, [email]);
+    if (!user) return '';
+    const parts = user.displayName.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return user.displayName.slice(0, 2).toUpperCase();
+  }, [user]);
 
   const currentEventLabel = currentEventName || currentEventCode;
 
@@ -99,6 +105,9 @@ export default function Header() {
                   <Link href="/me" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>
                     <span className="mr-2">🙋</span>Scouts
                   </Link>
+                  <Link href="/team" className="block px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMoreOpen(false)}>
+                    <span className="mr-2">👥</span>Team
+                  </Link>
                 </div>
               )}
             </div>
@@ -120,9 +129,9 @@ export default function Header() {
               </Link>
             )}
           </div>
-          {email ? (
+          {user ? (
             <>
-              <Link href="/me" className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-xs">{initials}</Link>
+              <Link href="/team" className="w-8 h-8 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-xs">{initials}</Link>
               <button onClick={logout} className="px-3 py-1 rounded border">Log out</button>
             </>
           ) : (
@@ -152,6 +161,7 @@ export default function Header() {
             <Link href="/pit/form-builder" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>🛠️ Pit Form Builder</Link>
             <Link href="/leaderboard" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>🏆 Leaderboard</Link>
             <Link href="/me" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>🙋 Scouts</Link>
+            <Link href="/team" className="px-2 py-2 rounded hover:bg-zinc-100 dark:hover:bg-zinc-900" onClick={() => setMobileOpen(false)}>👥 Team</Link>
           </nav>
         </div>
       )}

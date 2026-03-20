@@ -1,155 +1,137 @@
--- Minimal schema for single-team FRC scouting app
--- Run in Supabase SQL editor
+-- Full bootstrap for FRC scouting app (team-code auth)
+-- Drops all app tables and recreates from scratch.
+-- Run in Supabase SQL editor.
 
-create extension if not exists "pgcrypto";
+-- 1. Drop everything in dependency order
+DROP TABLE IF EXISTS matches CASCADE;
+DROP TABLE IF EXISTS events CASCADE;
+DROP TABLE IF EXISTS scouting_entries CASCADE;
+DROP TABLE IF EXISTS pit_entries CASCADE;
+DROP TABLE IF EXISTS form_templates CASCADE;
+DROP TABLE IF EXISTS pit_templates CASCADE;
+DROP TABLE IF EXISTS frc_teams CASCADE;
+DROP TABLE IF EXISTS profiles CASCADE;
+DROP TABLE IF EXISTS scouts CASCADE;
+DROP TABLE IF EXISTS teams CASCADE;
 
--- Basic user profile data for onboarding and event context
-create table if not exists profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  email text,
-  full_name text,
-  team_number int,
-  current_event_code text,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
+-- 2. Teams (one row per FRC team using the app)
+CREATE TABLE teams (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_number int UNIQUE NOT NULL,
+  team_name text NOT NULL,
+  join_code text UNIQUE NOT NULL,
+  created_at timestamptz DEFAULT now()
 );
 
-alter table profiles add column if not exists email text;
-alter table profiles add column if not exists full_name text;
-alter table profiles add column if not exists team_number int;
-alter table profiles add column if not exists current_event_code text;
-alter table profiles add column if not exists created_at timestamptz default now();
-alter table profiles add column if not exists updated_at timestamptz default now();
-
-create or replace function set_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
-drop trigger if exists set_profiles_updated_at on profiles;
-create trigger set_profiles_updated_at
-before update on profiles
-for each row execute function set_updated_at();
-
--- Dynamic form templates per season
-create table if not exists form_templates (
-  season int primary key,
-  form_definition jsonb not null default '[]'::jsonb,
-  created_at timestamptz default now()
+-- 3. Scouts (users, identified by team + display name)
+CREATE TABLE scouts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  team_id uuid NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  display_name text NOT NULL,
+  created_at timestamptz DEFAULT now(),
+  UNIQUE (team_id, display_name)
 );
 
--- Scouting entries (append-only)
-create table if not exists scouting_entries (
-  id uuid primary key default gen_random_uuid(),
-  season int not null,
-  event_code text not null,
-  match_key text not null,
-  team_number int not null,
+-- 4. Dynamic form templates per season
+CREATE TABLE form_templates (
+  season int PRIMARY KEY,
+  form_definition jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE pit_templates (
+  season int PRIMARY KEY,
+  form_definition jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_at timestamptz DEFAULT now()
+);
+
+-- 5. Scouting entries (append-only)
+CREATE TABLE scouting_entries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  season int NOT NULL,
+  event_code text NOT NULL,
+  match_key text NOT NULL,
+  team_number int NOT NULL,
   scout_id uuid,
   scout_name text,
   scouted_at timestamptz,
-  metrics jsonb not null default '{}'::jsonb,
-  created_at timestamptz default now()
+  metrics jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz DEFAULT now()
 );
 
--- TBA reference tables (used by import)
--- FRC Teams (names/logos) - use a separate table name to avoid collisions
-create table if not exists frc_teams (
-  number int primary key,
+CREATE TABLE pit_entries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  season int NOT NULL,
+  event_code text NOT NULL,
+  team_number int NOT NULL,
+  scout_id uuid,
+  metrics jsonb NOT NULL DEFAULT '{}'::jsonb,
+  photos jsonb NOT NULL DEFAULT '[]'::jsonb,
+  created_at timestamptz DEFAULT now()
+);
+
+-- 6. TBA reference tables
+CREATE TABLE frc_teams (
+  number int PRIMARY KEY,
   nickname text,
   name text,
   logo_url text,
-  updated_at timestamptz default now()
+  updated_at timestamptz DEFAULT now()
 );
 
-create table if not exists events (
-  id uuid primary key default gen_random_uuid(),
-  code text not null unique,
-  name text not null,
+CREATE TABLE events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code text NOT NULL UNIQUE,
+  name text NOT NULL,
   start_date date,
   end_date date
 );
 
-create table if not exists matches (
-  id uuid primary key default gen_random_uuid(),
-  event_id uuid not null references events(id) on delete cascade,
-  match_key text not null,
-  red_teams int[] not null,
-  blue_teams int[] not null,
+CREATE TABLE matches (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id uuid NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  match_key text NOT NULL,
+  red_teams int[] NOT NULL,
+  blue_teams int[] NOT NULL,
   scheduled_at timestamptz,
-  unique(event_id, match_key)
+  UNIQUE(event_id, match_key)
 );
 
--- Indexes
-create index if not exists idx_scout_entries_team on scouting_entries(team_number);
-create index if not exists idx_scout_entries_event_match on scouting_entries(event_code, match_key);
-create index if not exists idx_scout_entries_metrics_gin on scouting_entries using gin (metrics);
-create index if not exists idx_scout_entries_scouted_at on scouting_entries(scouted_at);
+-- 7. Indexes
+CREATE INDEX idx_scout_entries_team ON scouting_entries(team_number);
+CREATE INDEX idx_scout_entries_event_match ON scouting_entries(event_code, match_key);
+CREATE INDEX idx_scout_entries_metrics_gin ON scouting_entries USING gin (metrics);
+CREATE INDEX idx_scout_entries_scouted_at ON scouting_entries(scouted_at);
 
--- Row Level Security (permissive for authenticated users)
-alter table form_templates enable row level security;
-alter table scouting_entries enable row level security;
-alter table events enable row level security;
-alter table matches enable row level security;
-alter table frc_teams enable row level security;
-alter table profiles enable row level security;
+-- 8. Enable RLS on all tables
+ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE scouts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE form_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pit_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE scouting_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pit_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE frc_teams ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
 
-drop policy if exists "profiles own row" on profiles;
-create policy "profiles own row" on profiles
-for all using (auth.uid() = id) with check (auth.uid() = id);
+-- 9. Open RLS policies (auth is handled at the app layer via JWT cookies)
+CREATE POLICY "open" ON teams FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON scouts FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON form_templates FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON pit_templates FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON scouting_entries FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON pit_entries FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON frc_teams FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON events FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON matches FOR ALL USING (true) WITH CHECK (true);
 
-drop policy if exists "form_templates rw auth" on form_templates;
-create policy "form_templates rw auth" on form_templates
-for all using (auth.uid() is not null) with check (auth.uid() is not null);
+-- 10. Storage bucket for pit photos
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('pit-photos', 'pit-photos', true)
+ON CONFLICT (id) DO NOTHING;
 
-drop policy if exists "scouting_entries rw auth" on scouting_entries;
-create policy "scouting_entries rw auth" on scouting_entries
-for all using (auth.uid() is not null) with check (auth.uid() is not null);
-
-drop policy if exists "events read (auth)" on events;
-drop policy if exists "events rw (auth)" on events;
-create policy "events rw (auth)" on events
-for all using (auth.uid() is not null) with check (auth.uid() is not null);
-
-drop policy if exists "matches read (auth)" on matches;
-drop policy if exists "matches rw (auth)" on matches;
-create policy "matches rw (auth)" on matches
-for all using (auth.uid() is not null) with check (auth.uid() is not null);
-
-drop policy if exists "frc_teams rw (auth)" on frc_teams;
-create policy "frc_teams rw (auth)" on frc_teams
-for all using (auth.uid() is not null) with check (auth.uid() is not null);
-
--- Pit scouting tables
-create table if not exists pit_templates (
-  season int primary key,
-  form_definition jsonb not null default '[]'::jsonb,
-  created_at timestamptz default now()
-);
-
-create table if not exists pit_entries (
-  id uuid primary key default gen_random_uuid(),
-  season int not null,
-  event_code text not null,
-  team_number int not null,
-  scout_id uuid,
-  metrics jsonb not null default '{}'::jsonb,
-  photos jsonb not null default '[]'::jsonb,
-  created_at timestamptz default now()
-);
-
-alter table pit_templates enable row level security;
-alter table pit_entries enable row level security;
-
-drop policy if exists "pit_templates rw (auth)" on pit_templates;
-create policy "pit_templates rw (auth)" on pit_templates
-for all using (auth.uid() is not null) with check (auth.uid() is not null);
-
-drop policy if exists "pit_entries rw (auth)" on pit_entries;
-create policy "pit_entries rw (auth)" on pit_entries
-for all using (auth.uid() is not null) with check (auth.uid() is not null);
+-- Open storage policies for pit-photos bucket
+DROP POLICY IF EXISTS "open_upload" ON storage.objects;
+DROP POLICY IF EXISTS "open_read" ON storage.objects;
+CREATE POLICY "open_upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'pit-photos');
+CREATE POLICY "open_read" ON storage.objects FOR SELECT USING (bucket_id = 'pit-photos');

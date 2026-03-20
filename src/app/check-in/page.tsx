@@ -5,9 +5,9 @@ export const dynamic = 'force-dynamic';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import { useRequireAuth } from '@/lib/AuthContext';
 
 type TbaEvent = { code: string; name: string; start_date?: string | null; end_date?: string | null };
-type ProfileUpdate = { current_event_code: string };
 
 function getStoredCurrentEventCode(): string {
   if (typeof window === 'undefined') return '';
@@ -57,20 +57,19 @@ function formatEventDate(event: TbaEvent): string {
 }
 
 export default function CheckInPage() {
+  useRequireAuth();
   const [season, setSeason] = useState<number>(getInitialSeason);
   const [events, setEvents] = useState<TbaEvent[]>([]);
   const [search, setSearch] = useState<string>('');
   const [status, setStatus] = useState<string>('');
-  const [currentEventCode, setCurrentEventCode] = useState<string>(getStoredCurrentEventCode);
-  const [currentEventName, setCurrentEventName] = useState<string>(getStoredCurrentEventName);
+  const [currentEventCode, setCurrentEventCode] = useState<string>('');
+  const [currentEventName, setCurrentEventName] = useState<string>('');
   const router = useRouter();
 
   useEffect(() => {
-    // require auth
-    supabase.auth.getUser().then(({ data }) => {
-      if (!data.user) router.replace('/login');
-    });
-  }, [router]);
+    setCurrentEventCode(getStoredCurrentEventCode());
+    setCurrentEventName(getStoredCurrentEventName());
+  }, []);
 
   useEffect(() => {
     loadEvents();
@@ -124,15 +123,6 @@ export default function CheckInPage() {
       setCurrentEventCode(code);
       setCurrentEventName(name);
     } catch {}
-    // best-effort profile persist if column exists
-    supabase.auth.getUser().then(async ({ data }) => {
-      const uid = data.user?.id;
-      if (uid) {
-        try {
-          await supabase.from('profiles').update({ current_event_code: code } satisfies ProfileUpdate).eq('id', uid);
-        } catch {}
-      }
-    });
     setStatus('Ready!');
     router.push('/scout');
   }
@@ -140,47 +130,47 @@ export default function CheckInPage() {
   const filtered = events.filter((e) => (e.code + ' ' + e.name).toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div style={{ padding: 16, maxWidth: 800, margin: '0 auto' }}>
-      <h1>Check-in</h1>
-      <p>Pick your event once and the app will use it everywhere for scouting, pit scouting, and analysis.</p>
+    <div className="mx-auto max-w-3xl p-4">
+      <h1 className="text-zinc-900 dark:text-zinc-100">Check-in</h1>
+      <p className="text-zinc-900 dark:text-zinc-100">Pick your event once and the app will use it everywhere for scouting, pit scouting, and analysis.</p>
 
-      <div style={{ marginTop: 12, border: '1px solid #dbe7ff', background: '#f7faff', borderRadius: 12, padding: 12 }}>
-        <div style={{ fontWeight: 700 }}>Current event</div>
-        <div style={{ marginTop: 4, color: '#445' }}>
+      <div className="mt-3 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 p-3">
+        <div className="font-bold text-zinc-900 dark:text-zinc-100">Current event</div>
+        <div className="mt-1 text-zinc-500 dark:text-zinc-400">
           {currentEventCode ? `Checked in to ${currentEventName || currentEventCode}. You can switch events anytime below.` : 'No active event selected yet. Check in now so match and pit scouting are pre-filled.'}
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
-        <label>
+      <div className="flex flex-wrap gap-3 items-center mt-2">
+        <label className="text-zinc-900 dark:text-zinc-100">
           Season
-          <input type="number" value={season} onChange={(e) => setSeason(parseInt(e.target.value || String(new Date().getFullYear()), 10))} style={{ marginLeft: 8, padding: 6, border: '1px solid #ccc', borderRadius: 6 }} />
+          <input type="number" value={season} onChange={(e) => setSeason(parseInt(e.target.value || String(new Date().getFullYear()), 10))} className="ml-2 px-2 py-1.5 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" />
         </label>
-        <button onClick={loadEvents} style={{ padding: 8, borderRadius: 6, background: '#111', color: '#fff' }}>Load events</button>
-        <span style={{ color: '#555' }}>{status}</span>
+        <button onClick={loadEvents} className="px-3 py-2 rounded-md bg-blue-600 text-white font-medium hover:bg-blue-700">Load events</button>
+        <span className="text-zinc-500 dark:text-zinc-400">{status}</span>
       </div>
 
-      <div style={{ marginTop: 12 }}>
-        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by event code or name..." style={{ width: '100%', padding: 8, border: '1px solid #ccc', borderRadius: 6 }} />
+      <div className="mt-3">
+        <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by event code or name..." className="w-full px-2 py-1.5 border border-zinc-300 dark:border-zinc-600 rounded-md bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" />
       </div>
 
-      <div style={{ marginTop: 8, color: '#555', fontSize: 14 }}>
+      <div className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
         Events happening now or nearest in time are shown first.
       </div>
 
-      <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+      <div className="mt-3 grid gap-2">
         {filtered.map((e) => (
-          <div key={e.code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #eee', borderRadius: 8, padding: 8 }}>
+          <div key={e.code} className="flex justify-between items-center border border-zinc-200 dark:border-zinc-700 rounded-lg p-2">
             <div>
-              <div style={{ fontWeight: 600 }}>{e.name}</div>
-              <div style={{ fontSize: 12, color: '#666' }}>{e.code} • {formatEventDate(e)}</div>
+              <div className="font-semibold text-zinc-900 dark:text-zinc-100">{e.name}</div>
+              <div className="text-xs text-zinc-500 dark:text-zinc-400">{e.code} • {formatEventDate(e)}</div>
             </div>
-            <button onClick={() => chooseEvent(e.code, e.name)} style={{ padding: 8, borderRadius: 6, background: currentEventCode === e.code ? '#1d4ed8' : '#111', color: '#fff' }}>
+            <button onClick={() => chooseEvent(e.code, e.name)} className={`px-3 py-2 rounded-md font-medium text-white ${currentEventCode === e.code ? 'bg-blue-600 hover:bg-blue-700' : 'bg-zinc-900 hover:bg-zinc-700 dark:bg-zinc-700 dark:hover:bg-zinc-600'}`}>
               {currentEventCode === e.code ? 'Selected' : 'Use this event'}
             </button>
           </div>
         ))}
-        {filtered.length === 0 && <div>No events found yet. Try another season or search term.</div>}
+        {filtered.length === 0 && <div className="text-zinc-900 dark:text-zinc-100">No events found yet. Try another season or search term.</div>}
       </div>
     </div>
   );
